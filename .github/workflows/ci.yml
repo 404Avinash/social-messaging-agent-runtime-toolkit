@@ -1,0 +1,192 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only by default; no job here needs to write to the repo or call AWS.
+permissions:
+  contents: read
+
+# A new push supersedes the previous run for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # git and grep are the whole requirement, so this gate reports in seconds
+  # instead of sitting behind the Python resolve.
+  license-headers:
+    name: license-headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: check SPDX headers
+        run: bash scripts/check_license_headers.sh
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      # --frozen trusts uv.lock without checking it; this is the step that fails
+      # when pyproject.toml changed and the lock was not regenerated.
+      - name: uv lock --check
+        run: uv lock --check
+      - name: ruff check
+        run: uv run --frozen ruff check src/ tests/ packages/
+      - name: ruff format --check
+        run: uv run --frozen ruff format --check src/ tests/ packages/
+
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the declared floor; 3.12 is what the Lambda functions and the
+        # agent runtime actually run.
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --frozen
+      # Excludes the wheel-build/venv-install tests, which run in `packaging`.
+      - run: uv run --frozen pytest -m "not slow"
+
+  packaging:
+    name: packaging (pip install)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      # Asserts the wheel carries blueprints/, recipes/ and socialagent-runtime, that
+      # `socialagent init` works from a pip install with no repo root above it, and that
+      # each scaffolded project boots and serves /ping. Needs port 8080 free and
+      # network access to install each blueprint's requirements.txt.
+      - run: uv run --frozen pytest tests/test_cli_packaging.py -v
+
+  backend-test:
+    name: backend-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: socialagent-admin-console/backend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: socialagent-admin-console/backend/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest
+        env:
+          # moto intercepts the calls, but botocore still requires credentials
+          # and a region to be present before it will build a request.
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing  # pragma: allowlist secret
+
+  ui:
+    name: ui (test + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: socialagent-admin-console
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: socialagent-admin-console/package-lock.json
+      - run: npm ci
+      # Test and build share one job so npm ci is paid once.
+      - run: npm run test
+      - run: npm run build
+      # build and vitest never run Vite's dependency optimizer; this does.
+      - run: npm run smoke:dev
+
+  terraform:
+    name: terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.11.4"
+          terraform_wrapper: false
+      - name: fmt
+        run: terraform fmt -check -recursive
+      # tf-validate inits all three roots with -backend=false and an isolated
+      # TF_DATA_DIR, so no AWS credentials and no remote state are involved, and
+      # runs infra-terraform/tftest/ (terraform test, mocked providers, plan
+      # only), which needs Terraform 1.11 or later (override_during).
+      - name: validate
+        run: make tf-validate
+      # The Python test jobs have no terraform binary, so the tests that need
+      # one run here. The module docstring of tests/test_terraform_hardening.py
+      # says which they are and what each evaluates or plans; it is the one
+      # place that lists them.
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      - name: terraform-backed tests
+        env:
+          SOCIALAGENT_REQUIRE_TERRAFORM: "1"
+        run: uv run --frozen pytest -q -p no:cacheprovider tests/test_terraform_hardening.py
+
+  # The three roots declare Terraform 1.7 as their minimum (versions.tf), and
+  # the terraform job runs 1.11.4, so a construct newer than 1.7 would pass
+  # there and fail a deployer on 1.7. This job inits and validates each root
+  # on 1.7.5. It skips the mocked plan tests (infra-terraform/tftest/), which
+  # need 1.11. tests/test_ci_terraform_job.py fails when this version and the
+  # roots' minimum part.
+  terraform-minimum:
+    name: terraform-minimum
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.7.5"
+          terraform_wrapper: false
+      - name: validate
+        run: make tf-validate-roots

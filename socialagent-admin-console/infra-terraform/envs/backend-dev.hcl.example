@@ -1,0 +1,9 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Copy to backend-dev.hcl and fill in your values (backend-dev.hcl is gitignored).
+bucket       = "socialagent-terraform-state-<account-id>-dev"
+key          = "socialagent-admin-console/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true

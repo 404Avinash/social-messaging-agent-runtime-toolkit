@@ -1,0 +1,63 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Bug report
+description: Something in SMART does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Issues are public. Redact secrets, AWS account IDs, ARNs, phone numbers and message content from anything you paste. For a security issue, see SECURITY.md instead.
+
+        Before filing, check the Known Issues section of AGENTS.md and the relevant docs/*.md: several surprising behaviors are documented tradeoffs.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence of commands or messages that shows the problem.
+      placeholder: |
+        1. socialagent init my-bot --blueprint personal-assistant
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `socialagent --version`, or the commit you cloned.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - CLI (init, dev, deploy, recipe, templates, config, runtime)
+        - Lambda control layer (webhook, notification, scheduler, event)
+        - Agent runtime package (socialagent_runtime)
+        - Blueprint or recipe
+        - Terraform
+        - Admin console
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: runtime-status
+    attributes:
+      label: Output of `socialagent runtime status`
+      description: Run it in the project. An outdated vendored runtime explains many agent-side bugs.
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Redacted. CloudWatch, CLI output, or the admin console Errors tab.
+      render: text

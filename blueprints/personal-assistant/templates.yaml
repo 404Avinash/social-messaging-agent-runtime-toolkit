@@ -1,0 +1,56 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# WhatsApp templates for this stack.
+#
+# Rules (Meta reclassifies as MARKETING otherwise):
+#   - No emojis at the start of the body
+#   - No branding or promotional language
+#   - Plain transactional text only
+#   - Variables cannot be at the start or end of the body
+#
+# Sync: uv run socialagent templates sync --phone-number-id <ARN> --prefix <prefix>
+templates:
+  - name: reminder_clean
+    category: UTILITY
+    language: es_MX
+    components:
+      - type: BODY
+        text: |
+          Recordatorio programado:
+
+          {{1}}
+
+          Este recordatorio fue configurado por ti.
+        example:
+          body_text:
+            - ["Tomar agua"]
+    variables:
+      - name: reminder_text
+        position: 1
+
+  - name: task_completed
+    category: UTILITY
+    language: es_MX
+    components:
+      - type: BODY
+        # Meta rejects a body with too many variables for its length
+        # (InvalidParametersException), and the file's own rule above says a
+        # variable cannot close the body. Both are why the static text carries
+        # the weight here and the last line has no variable in it.
+        text: |
+          Tu tarea programada ya se completó.
+
+          Descripción de la tarea: {{1}}
+
+          Resultado obtenido: {{2}}
+
+          Puedes responder a este mensaje si necesitas hacer algún ajuste.
+        example:
+          body_text:
+            - ["Revisar correos", "Encontré 3 correos pendientes"]
+    variables:
+      - name: task_description
+        position: 1
+      - name: task_result
+        position: 2

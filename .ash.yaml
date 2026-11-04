@@ -1,0 +1,487 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/automated-security-helper/main/automated_security_helper/schemas/AshConfig.json
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# =============================================================================
+# ASH (Automated Security Helper) configuration for SMART
+# =============================================================================
+# Suppressions below are the documented security-scan baseline for this
+# toolkit. Each entry's reason states its category and rationale. Categories:
+#
+#   [FALSE POSITIVE]      Tool cannot see the actual (safe) configuration.
+#   [REQUIRED BY DESIGN]  The flagged setting is needed for the toolkit to work.
+#   [BY DESIGN ...]       Intentional architectural choice for this toolkit.
+#   [ACCEPTED]            Control satisfied by an equivalent mechanism.
+#   [ACCEPTED RISK]       Control intentionally NOT implemented in this toolkit;
+#                         the residual risk is documented and accepted (see
+#                         threat model). Production deployments should evaluate it.
+#   [DEFERRED TO PROD ...] Real hardening that production deployments should
+#                          apply; out of scope for the default baseline.
+#
+# Each entry is scoped to a specific (rule_id, path) pair, so a NEW rule, or the
+# SAME rule in a NEW file, is NOT silenced and will surface on the next scan.
+#
+# NOTE: CKV_AWS_27 (SQS DLQ encryption) is fixed in the Terraform (SSE-SQS on
+# every DLQ) and is intentionally absent here (no suppression). CKV_AWS_117
+# (Lambdas in VPC) is NOT fixed: VPC-based egress isolation is not part of the
+# default baseline and is an [ACCEPTED RISK] (see the data-plane Lambda module
+# entries below and the threat-model T5/T6 rationale).
+# =============================================================================
+project_name: social-messaging-agent-runtime-toolkit
+fail_on_findings: true
+
+global_settings:
+  severity_threshold: MEDIUM
+  ignore_paths:
+    # Local `terraform init` provider cache: gitignored, never committed or scanned in CI.
+    # grype flags Go-stdlib CVEs baked into HashiCorp's distributed provider binaries
+    # (archive/null/random) — third-party vendored binaries we cannot remediate.
+    - path: "**/.terraform/**"
+      reason: "[OUT OF SCOPE] Local terraform-init provider-binary cache (gitignored, not in repo/CI); CVEs live in HashiCorp's distributed Go binaries, not project code."
+    # Local Python virtualenv: gitignored, never committed or scanned in CI. grype
+    # flags CVEs in the pip that bootstraps the venv (pip-*.dist-info) — a local
+    # developer tool, not a dependency of the shipped toolkit.
+    - path: "**/.venv/**"
+      reason: "[OUT OF SCOPE] Local Python virtualenv (gitignored, not in repo/CI); CVEs are in the bootstrap pip, not project code or its declared dependencies."
+  suppressions:
+    # === bandit: justified crypto/urllib uses (replaces ineffective inline "# noqa"; ===
+    # === bandit honors "# nosec", not Ruff's "# noqa", so suppressions live here)     ===
+    - rule_id: B303
+      path: "src/socialagent/providers/eum_social.py"
+      reason: "[REQUIRED BY DESIGN] SHA1 is mandated by the AWS SNS message-signature verification scheme, not used as a security hash"
+    - rule_id: B303
+      path: "tests/test_hardening.py"
+      reason: "[TEST FIXTURE] SHA1 signs a synthetic SNS envelope to exercise the verifier against AWS's PKCS1v15+SHA1 scheme; test-only, mirrors the mandated production scheme in eum_social.py"
+    - rule_id: B310
+      path: "src/socialagent/media/transcriber.py"
+      reason: "[FALSE POSITIVE] urlopen targets only the transcript URI returned by Amazon Transcribe, not user input"
+    - rule_id: B310
+      path: "tests/test_cli_packaging.py"
+      reason: "[TEST FIXTURE] urlopen polls a scaffolded agent's health check at the fixed localhost URL http://127.0.0.1:8080/ping, not user input"
+    - rule_id: B102
+      path: "tests/test_blueprint_scheduler_tools.py"
+      reason: "[TEST FIXTURE] exec runs one function read from the repo's own blueprints/appointment-scheduler/agent.py, which cannot be imported because it starts the server at module level; no external input"
+    - rule_id: B102
+      path: "tests/test_appointment_scheduler_cancel_confirmation.py"
+      reason: "[TEST FIXTURE] exec runs one function read from the repo's own blueprints/appointment-scheduler/agent.py, which cannot be imported because it starts the server at module level; no external input"
+
+    # === detect-secrets ===
+    # Test fixtures and *.example templates hold fake values, so they are
+    # suppressed per file below. Anywhere else, a false positive is allowlisted
+    # on its own line with "# pragma: allowlist secret" instead of here, so the
+    # rest of that file is still scanned.
+    - rule_id: SECRET-SECRET-KEYWORD
+      path: "infra-terraform/terraform.tfvars.example"
+      reason: "[FALSE POSITIVE] Commented-out placeholder values in a *.example template; no real credential"
+    - rule_id: SECRET-SECRET-KEYWORD
+      path: "tests/test_cli_secrets.py"
+      reason: "[TEST FIXTURE] Fake secret values written to and read back from a moto-mocked Secrets Manager; no real credential"
+    - rule_id: SECRET-SECRET-KEYWORD
+      path: "tests/test_cli_packaging.py"
+      reason: "[TEST FIXTURE] Dummy AWS credentials so botocore builds requests in a scaffolded agent with AWS walled off; no real credential"
+    - rule_id: SECRET-SECRET-KEYWORD
+      path: "tests/test_cli_e2e.py"
+      reason: "[TEST FIXTURE] Dummy AWS credentials for a CLI subprocess whose AWS endpoint stays on this machine; no real credential"
+    - rule_id: SECRET-SECRET-KEYWORD
+      path: "tests/test_event_api_authorizer.py"
+      reason: "[TEST FIXTURE] Fake webhook secret and secret ARN fed to the event API authorizer through a stubbed Secrets Manager client; no real credential"
+
+    # === semgrep / opengrep (both run the same registry rules, so one entry covers both) ===
+    # ASH runs them with p/ci, which raises none of these. The entries cover the
+    # wider registry packs (p/default, p/python, p/terraform, p/react) a reviewer
+    # may run, so under the default p/ci config ASH lists them as unused. The
+    # Terraform entries are the same controls checkov reports, with the same call.
+    # GitHub Actions tag pinning and Dependabot cooldowns are fixed, not listed here.
+    # --- python ---
+    - rule_id: python.cryptography.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
+      path: "src/socialagent/providers/eum_social.py"
+      reason: "[REQUIRED BY DESIGN] SHA1 is mandated by the AWS SNS message-signature verification scheme (SignatureVersion 1), not used as a security hash; the same call bandit flags as B303"
+    - rule_id: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+      path: "src/socialagent/media/transcriber.py"
+      reason: "[FALSE POSITIVE] urlopen targets only the transcript URI returned by Amazon Transcribe, not user input; the same call bandit flags as B310"
+    - rule_id: python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly
+      path: "blueprints/minimal/agent.py"
+      reason: "[FALSE POSITIVE] app is a bedrock_agentcore BedrockAgentCoreApp (Starlette on uvicorn), not Flask. app.run() is its documented entrypoint, serving /invocations and /ping on port 8080 in the AgentCore Runtime container; the app is built with debug at its False default"
+    - rule_id: python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly
+      path: "blueprints/personal-assistant/agent.py"
+      reason: "[FALSE POSITIVE] app is a bedrock_agentcore BedrockAgentCoreApp (Starlette on uvicorn), not Flask. app.run() is its documented entrypoint, serving /invocations and /ping on port 8080 in the AgentCore Runtime container; the app is built with debug at its False default"
+    - rule_id: python.flask.security.audit.app-run-security-config.avoid_using_app_run_directly
+      path: "blueprints/appointment-scheduler/agent.py"
+      reason: "[FALSE POSITIVE] app is a bedrock_agentcore BedrockAgentCoreApp (Starlette on uvicorn), not Flask. app.run() is its documented entrypoint, serving /invocations and /ping on port 8080 in the AgentCore Runtime container; the app is built with debug at its False default"
+    # --- terraform: IAM ---
+    - rule_id: terraform.lang.security.iam.no-iam-creds-exposure.no-iam-creds-exposure
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[REQUIRED BY DESIGN] CodeBuild needs ecr:GetAuthorizationToken to docker login before pushing the agent image. The action has no resource-level permissions, so Resource '*' is its only form; the push itself is scoped to the stack's repository by the ECRPushPull statement, or to this account and region's repositories when the deployer brings their own (A016)."
+    - rule_id: terraform.lang.security.iam.no-iam-data-exfiltration.no-iam-data-exfiltration
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[FALSE POSITIVE] The rule flags s3:GetObject in any policy that has a Resource '*' statement anywhere. Here s3:GetObject is scoped to the agent source bucket (or its key prefix in the shared artifacts bucket); the only '*' statement is ecr:GetAuthorizationToken, which has no resource-level permissions."
+    - rule_id: terraform.lang.security.iam.no-iam-data-exfiltration.no-iam-data-exfiltration
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[FALSE POSITIVE] The rule flags s3:GetObject in any policy that has a Resource '*' statement anywhere. Here s3:GetObject is scoped to the template source bucket (or its key prefix in the shared artifacts bucket); the only '*' statement is the social-messaging template actions (see CKV_AWS_355 below)."
+    - rule_id: terraform.lang.security.iam.no-iam-data-exfiltration.no-iam-data-exfiltration
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[FALSE POSITIVE] The rule flags S3 and Secrets Manager reads in any policy that has a Resource '*' statement anywhere. Here s3:GetObject is scoped to the registry bucket and GetSecretValue to this account's *-event-webhook-secret-* entries; the '*' statements are actions such as cloudwatch:GetMetricData and social-messaging:ListLinkedWhatsAppBusinessAccounts."
+    - rule_id: terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[REQUIRED BY DESIGN] The console updates an agent runtime's configuration, and UpdateAgentRuntime requires iam:PassRole on the runtime's execution role. PassRole is scoped to this account's *-agentcore-runtime roles, so the console cannot pass any other role."
+    # --- terraform: same controls as the checkov entries below ---
+    - rule_id: terraform.aws.security.aws-cloudfront-insecure-tls.aws-insecure-cloudfront-distribution-tls-version
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (CloudFront)] Viewer TLS >=1.2 is tied to a custom certificate (deferred); the default CloudFront certificate applies. Same control as CKV_AWS_174."
+    - rule_id: terraform.aws.security.aws-cloudtrail-encrypted-with-cmk.aws-cloudtrail-encrypted-with-cmk
+      path: "infra-terraform/modules/security-logging/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudTrail log files are encrypted with SSE-S3 (the audit bucket's default); a customer-managed KMS key is recommended for prod when the customer key policy requires it. Same control as CKV_AWS_35."
+    - rule_id: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_158."
+    - rule_id: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
+      path: "infra-terraform/modules/monitoring/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_158."
+    - rule_id: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
+      path: "infra-terraform/modules/observability/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_158."
+    - rule_id: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_158."
+    - rule_id: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
+      path: "infra-terraform/modules/security-logging/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_158."
+    - rule_id: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_158."
+    - rule_id: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_158."
+    - rule_id: terraform.aws.security.aws-codebuild-project-unencrypted.aws-codebuild-project-unencrypted
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] No encryption_key, so CodeBuild uses the AWS-managed aws/s3 key. Both projects declare NO_ARTIFACTS and log only to CloudWatch, with no S3 cache, so there is no build output for a CMK to protect; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: terraform.aws.security.aws-codebuild-project-unencrypted.aws-codebuild-project-unencrypted
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] No encryption_key, so CodeBuild uses the AWS-managed aws/s3 key. The project declares NO_ARTIFACTS and logs only to CloudWatch, with no S3 cache, so there is no build output for a CMK to protect; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: terraform.aws.security.aws-codebuild-project-unencrypted.aws-codebuild-project-unencrypted
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] No encryption_key, so CodeBuild uses the AWS-managed aws/s3 key. The project declares NO_ARTIFACTS and logs only to CloudWatch, with no S3 cache, so there is no build output for a CMK to protect; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: terraform.aws.security.aws-dynamodb-table-unencrypted.aws-dynamodb-table-unencrypted
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Encryption enabled with AWS-managed keys; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_119."
+    - rule_id: terraform.aws.security.aws-ecr-mutable-image-tags.aws-ecr-mutable-image-tags
+      path: "infra-terraform/modules/runtime/main.tf"
+      reason: "[DEFERRED TO PROD (code signing)] ECR immutable tags are a prod release-integrity control; the toolkit pushes mutable tags during iterative deploys. Same control as CKV_AWS_51."
+    - rule_id: terraform.aws.security.aws-lambda-environment-unencrypted.aws-lambda-environment-unencrypted
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Lambda env vars encrypted with AWS-managed key; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_173."
+    - rule_id: terraform.aws.security.aws-lambda-environment-unencrypted.aws-lambda-environment-unencrypted
+      path: "infra-terraform/modules/lambdas/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Lambda env vars encrypted with AWS-managed key; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_173."
+    - rule_id: terraform.aws.security.aws-lambda-environment-unencrypted.aws-lambda-environment-unencrypted
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Lambda env vars encrypted with AWS-managed key; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_173."
+    - rule_id: terraform.aws.security.aws-lambda-x-ray-tracing-not-active.aws-lambda-x-ray-tracing-not-active
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] X-Ray tracing deferred; CloudWatch logs provide sufficient observability for this toolkit. Same control as CKV_AWS_50."
+    - rule_id: terraform.aws.security.aws-secretsmanager-secret-unencrypted.aws-secretsmanager-secret-unencrypted
+      path: "infra-terraform/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Encryption enabled with AWS-managed keys; customer-managed CMK recommended for prod when customer key policy requires it. Same control as CKV_AWS_149."
+
+    # === checkov (documented IaC baseline — see assumption A015 in docs/threat-model.md) ===
+    # --- socialagent-admin-console/infra-terraform/modules/api/main.tf ---
+    - rule_id: CKV2_AWS_62
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 event notifications are an integration/ops control; not configured in the default baseline."
+    - rule_id: CKV_AWS_115
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (concurrency)] Function-level reserved concurrency is a prod tuning/DoS-isolation control; default unreserved concurrency in this toolkit."
+    - rule_id: CKV_AWS_117
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[OUT OF SCOPE] Admin console is a separate management-plane app with no VPC infrastructure; data-plane egress isolation (threat model M3) applies to the agent runtime + event-ingestion Lambdas, not the management UI backend."
+    - rule_id: CKV_AWS_116
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[ACCEPTED] No DLQ: API Gateway invokes the admin API backend Lambda synchronously, so a failure returns to the caller. A DLQ only receives failed asynchronous invocations."
+    - rule_id: CKV_AWS_144
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 cross-region replication is a prod DR control; not enabled in the default baseline."
+    - rule_id: CKV_AWS_145
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Default encryption is SSE-S3 (Amazon S3 managed keys); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_158
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[FALSE POSITIVE] The backend log group is encrypted with the console's customer-managed key: the root module always passes aws_kms_key.main (rotation on; its policy grants CloudWatch Logs on /aws/lambda/<prefix>-*), but checkov reads the module variable's empty default and resolves kms_key_id to null."
+    - rule_id: CKV_AWS_173
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Lambda env vars encrypted with AWS-managed key; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_272
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (code signing)] Lambda code signing requires an organizational signing profile / CI setup; left to the deployer's release process (threat model M4, A013)."
+    - rule_id: CKV_AWS_338
+      path: "socialagent-admin-console/infra-terraform/modules/api/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] Log retention <1yr in this toolkit; prod should extend retention per compliance requirements."
+    # --- socialagent-admin-console/infra-terraform/modules/frontend/main.tf ---
+    - rule_id: CKV2_AWS_42
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (CloudFront)] Custom SSL certificate is a prod domain control; the toolkit uses the default CloudFront certificate."
+    - rule_id: CKV2_AWS_47
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (WAF)] WAF Log4j AMR rule depends on a WAF WebACL, which is deferred to prod."
+    - rule_id: CKV2_AWS_61
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 lifecycle configuration is a prod cost/retention control; not set in the default baseline."
+    - rule_id: CKV2_AWS_62
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 event notifications are an integration/ops control; not configured in the default baseline."
+    - rule_id: CKV_AWS_144
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 cross-region replication is a prod DR control; not enabled in the default baseline."
+    - rule_id: CKV_AWS_145
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Default encryption is SSE-S3 (Amazon S3 managed keys); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_174
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (CloudFront)] Viewer TLS >=1.2 is tied to a custom certificate (deferred); the default CloudFront certificate applies."
+    - rule_id: CKV_AWS_18
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (S3 access logging)] Server access logging is configured on the per-stack media bucket, which delivers to the audit-trails bucket, and on the admin console's registry bucket; the audit-trails and template-sync buckets do not log their own access, as AWS advises against a bucket logging to itself, and the shared runtime bucket has none; remaining build/artifact buckets deferred to prod audit hardening (threat model A015)."
+    - rule_id: CKV_AWS_310
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (CloudFront)] Origin failover is a prod availability control; single origin in this toolkit."
+    - rule_id: CKV_AWS_374
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (CloudFront)] Geo restriction is a prod policy control; not applied in this toolkit."
+    - rule_id: CKV_AWS_68
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (WAF)] WAF is a production edge control; not provisioned in this toolkit's baseline."
+    - rule_id: CKV_AWS_86
+      path: "socialagent-admin-console/infra-terraform/modules/frontend/main.tf"
+      reason: "[DEFERRED TO PROD (CloudFront)] CloudFront access logging is a prod audit control; deferred in this toolkit."
+    # --- infra-terraform/bootstrap/main.tf ---
+    - rule_id: CKV2_AWS_61
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] The runtime and artifacts buckets have lifecycle rules; the Terraform state buckets have none and keep every state version. Their retention is a prod cost/retention decision."
+    - rule_id: CKV2_AWS_62
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 event notifications are an integration/ops control; not configured in the default baseline."
+    - rule_id: CKV_AWS_119
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Encryption enabled with AWS-managed keys; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_144
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 cross-region replication is a prod DR control; not enabled in the default baseline."
+    - rule_id: CKV_AWS_145
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Default encryption is SSE-S3 (Amazon S3 managed keys); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_18
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (S3 access logging)] No bootstrap bucket (Terraform state, shared runtime, shared artifacts) has server access logging. In shared-bucket mode the runtime bucket holds every stack's conversation media and audit trails, so object-level access to it is not logged until a deployer adds it (threat model A015)."
+    - rule_id: CKV_AWS_300
+      path: "infra-terraform/bootstrap/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 abort-incomplete-upload lifecycle rule is a prod hygiene control; not set in the default baseline."
+    # --- infra-terraform/main.tf ---
+    - rule_id: CKV2_AWS_57
+      path: "infra-terraform/main.tf"
+      reason: "[DEFERRED TO PROD (rotation)] Secrets Manager automatic rotation requires a rotation Lambda / operational policy; deferred to prod."
+    - rule_id: CKV2_AWS_61
+      path: "infra-terraform/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] The conversation-logs bucket expires objects after 90 days and removes their noncurrent versions 30 days later; the audit-trails bucket (access logs, CloudTrail, Bedrock invocation logs) has no lifecycle rule, as its retention is a prod compliance decision."
+    - rule_id: CKV2_AWS_62
+      path: "infra-terraform/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 event notifications are an integration/ops control; not configured in the default baseline."
+    - rule_id: CKV_AWS_144
+      path: "infra-terraform/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 cross-region replication is a prod DR control; not enabled in the default baseline."
+    - rule_id: CKV_AWS_145
+      path: "infra-terraform/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Default encryption is SSE-S3 (Amazon S3 managed keys); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_149
+      path: "infra-terraform/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Encryption enabled with AWS-managed keys; customer-managed CMK recommended for prod when customer key policy requires it."
+    # --- infra-terraform/metrics.tf ---
+    - rule_id: CKV_AWS_124
+      path: "infra-terraform/metrics.tf"
+      reason: "[BY DESIGN] The deployment-metrics stack (on by default; enable_deployment_metrics = false opts out) exists only to carry an anonymous tracking code and holds one SSM parameter; SNS notifications of its stack events would report nothing worth acting on."
+    # --- infra-terraform/modules/event-api/main.tf ---
+    - rule_id: CKV2_AWS_29
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (WAF)] API Gateway WAF protection is a production edge control; deferred to prod."
+    - rule_id: CKV2_AWS_51
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[ACCEPTED] An API Gateway client certificate authenticates API Gateway to an HTTP backend; this stage's only integration is the AWS-service SNS Publish integration, which API Gateway signs with its IAM role. Callers are authenticated by the API key and the custom authorizer (threat model A014)."
+    - rule_id: CKV2_AWS_53
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[ACCEPTED] Request handled by a custom Lambda authorizer + API key; request-body validation is additive and not required for this single POST contract."
+    - rule_id: CKV_AWS_115
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (concurrency)] Function-level reserved concurrency is a prod tuning/DoS-isolation control; default unreserved concurrency in this toolkit."
+    - rule_id: CKV_AWS_116
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[ACCEPTED] No DLQ: API Gateway invokes the event authorizer Lambda synchronously, so a failure denies the request. A DLQ only receives failed asynchronous invocations."
+    - rule_id: CKV_AWS_117
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[ACCEPTED RISK] No network egress isolation in the default baseline; the event authorizer Lambda runs in PUBLIC network mode (no VPC). Egress controls are a consumer/prod responsibility. See threat-model T5/T6."
+    - rule_id: CKV_AWS_120
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] API Gateway response caching is a prod performance control; not needed in this toolkit."
+    - rule_id: CKV_AWS_158
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_173
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Lambda env vars encrypted with AWS-managed key; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_225
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] API Gateway method-level caching is a prod performance control; not needed in this toolkit."
+    - rule_id: CKV_AWS_237
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD] API Gateway create-before-destroy is a deploy-safety nicety; not required for this toolkit."
+    - rule_id: CKV_AWS_272
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (code signing)] Lambda code signing requires an organizational signing profile / CI setup; left to the deployer's release process (threat model M4, A013)."
+    - rule_id: CKV_AWS_385
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[FALSE POSITIVE] SNS topic policy principal is ${account_id}:root only (single-account). Not cross-account; checkov misreads the root principal."
+    - rule_id: CKV_AWS_50
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] X-Ray tracing deferred; CloudWatch logs provide sufficient observability for this toolkit."
+    - rule_id: CKV_AWS_73
+      path: "infra-terraform/modules/event-api/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] API Gateway X-Ray tracing deferred; CloudWatch logs are sufficient for this toolkit."
+    # --- infra-terraform/modules/lambdas/main.tf ---
+    - rule_id: CKV_AWS_115
+      path: "infra-terraform/modules/lambdas/main.tf"
+      reason: "[DEFERRED TO PROD (concurrency)] Function-level reserved concurrency is a prod tuning/DoS-isolation control; default unreserved concurrency in this toolkit."
+    - rule_id: CKV_AWS_117
+      path: "infra-terraform/modules/lambdas/main.tf"
+      reason: "[ACCEPTED RISK] No network egress isolation in the default baseline; the webhook/notification/event/scheduler Lambdas run in PUBLIC network mode (no VPC). Egress controls are a consumer/prod responsibility. See threat-model T5/T6."
+    - rule_id: CKV_AWS_173
+      path: "infra-terraform/modules/lambdas/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Lambda env vars encrypted with AWS-managed key; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_272
+      path: "infra-terraform/modules/lambdas/main.tf"
+      reason: "[DEFERRED TO PROD (code signing)] Lambda code signing requires an organizational signing profile / CI setup; left to the deployer's release process (threat model M4, A013)."
+    # --- infra-terraform/modules/monitoring/main.tf ---
+    - rule_id: CKV_AWS_158
+      path: "infra-terraform/modules/monitoring/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_26
+      path: "infra-terraform/modules/monitoring/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] The alarm topic (modules/monitoring) and the inbound WhatsApp topic (modules/sns) are unencrypted at rest by default: the service that publishes to each, CloudWatch and EUM Social, cannot use the AWS-managed alias/aws/sns key, whose key policy cannot be changed to grant it, so under that key no alarm would notify and no message would arrive. The alarm topic carries alarm metadata only, and SNS still stores messages with disk encryption. For prod, the root variable sns_kms_key_arn encrypts both with a customer-managed CMK whose key policy grants both publishing services; its validation rejects any alias, alias/aws/sns included, but cannot tell an AWS-managed key's ARN from a customer-managed one or check the key policy, so docs/configuration.md has the deployer check the key before the deploy and both topics after it. Threat model C002, C039."
+    - rule_id: CKV_AWS_338
+      path: "infra-terraform/modules/monitoring/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] Log retention <1yr in this toolkit; prod should extend retention per compliance requirements."
+    # --- infra-terraform/modules/observability/main.tf ---
+    - rule_id: CKV_AWS_158
+      path: "infra-terraform/modules/observability/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_338
+      path: "infra-terraform/modules/observability/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] Log retention <1yr in this toolkit; prod should extend retention per compliance requirements."
+    # --- infra-terraform/modules/runtime/codebuild.tf ---
+    - rule_id: CKV2_AWS_62
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 event notifications are an integration/ops control; not configured in the default baseline."
+    - rule_id: CKV_AWS_144
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 cross-region replication is a prod DR control; not enabled in the default baseline."
+    - rule_id: CKV_AWS_145
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Default encryption is SSE-S3 (Amazon S3 managed keys); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_158
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_18
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (S3 access logging)] Server access logging is configured on the per-stack media bucket, which delivers to the audit-trails bucket, and on the admin console's registry bucket; the audit-trails and template-sync buckets do not log their own access, as AWS advises against a bucket logging to itself, and the shared runtime bucket has none; remaining build/artifact buckets deferred to prod audit hardening (threat model A015)."
+    - rule_id: CKV_AWS_300
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 abort-incomplete-upload lifecycle rule is a prod hygiene control; not set in the default baseline."
+    - rule_id: CKV_AWS_316
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[REQUIRED BY DESIGN] CodeBuild privileged mode is required to build Docker container images for the AgentCore runtime."
+    - rule_id: CKV_AWS_338
+      path: "infra-terraform/modules/runtime/codebuild.tf"
+      reason: "[DEFERRED TO PROD (observability)] Log retention <1yr in this toolkit; prod should extend retention per compliance requirements."
+    # --- infra-terraform/modules/runtime/main.tf ---
+    - rule_id: CKV_AWS_136
+      path: "infra-terraform/modules/runtime/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Encryption enabled with AWS-managed keys; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_51
+      path: "infra-terraform/modules/runtime/main.tf"
+      reason: "[DEFERRED TO PROD (code signing)] ECR immutable tags are a prod release-integrity control; the toolkit pushes mutable tags during iterative deploys."
+    # --- infra-terraform/modules/secrets/main.tf ---
+    - rule_id: CKV_AWS_149
+      path: "infra-terraform/modules/secrets/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] The project secrets use the AWS-managed Secrets Manager key unless kms_key_arn names a customer-managed one; a CMK is recommended for prod when the customer key policy requires it (threat model M12). Same control as CKV_AWS_149 on the webhook secret in infra-terraform/main.tf."
+    - rule_id: CKV2_AWS_57
+      path: "infra-terraform/modules/secrets/main.tf"
+      reason: "[DEFERRED TO PROD (rotation)] Secrets Manager automatic rotation requires a rotation Lambda / operational policy; deferred to prod."
+    # --- infra-terraform/modules/security-logging/main.tf ---
+    - rule_id: CKV_AWS_158
+      path: "infra-terraform/modules/security-logging/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_252
+      path: "infra-terraform/modules/security-logging/main.tf"
+      reason: "[DEFERRED TO PROD (CloudTrail)] CloudTrail SNS topic for log-delivery notifications is a prod ops control; deferred."
+    - rule_id: CKV_AWS_338
+      path: "infra-terraform/modules/security-logging/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] Log retention <1yr in this toolkit; prod should extend retention per compliance requirements."
+    - rule_id: CKV_AWS_35
+      path: "infra-terraform/modules/security-logging/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudTrail log files are encrypted with SSE-S3 (the audit bucket's default); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_67
+      path: "infra-terraform/modules/security-logging/main.tf"
+      reason: "[BY DESIGN (single-region)] The toolkit deploys to a single region; is_multi_region_trail=false is intentional. Prod multi-region deployments should enable it."
+    # --- infra-terraform/modules/sns/main.tf ---
+    # checkov passes this topic today only because it cannot resolve the topic's
+    # kms_master_key_id conditional; the entry records the same call as the alarm topic's.
+    - rule_id: CKV_AWS_26
+      path: "infra-terraform/modules/sns/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] The alarm topic (modules/monitoring) and the inbound WhatsApp topic (modules/sns) are unencrypted at rest by default: the service that publishes to each, CloudWatch and EUM Social, cannot use the AWS-managed alias/aws/sns key, whose key policy cannot be changed to grant it, so under that key no alarm would notify and no message would arrive. The alarm topic carries alarm metadata only, and SNS still stores messages with disk encryption. For prod, the root variable sns_kms_key_arn encrypts both with a customer-managed CMK whose key policy grants both publishing services; its validation rejects any alias, alias/aws/sns included, but cannot tell an AWS-managed key's ARN from a customer-managed one or check the key policy, so docs/configuration.md has the deployer check the key before the deploy and both topics after it. Threat model C002, C039."
+    # --- infra-terraform/modules/state/main.tf ---
+    - rule_id: CKV_AWS_28
+      path: "infra-terraform/modules/state/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] DynamoDB point-in-time recovery is a prod data-durability control; not enabled in the default baseline."
+    # --- infra-terraform/modules/templates/main.tf ---
+    - rule_id: CKV2_AWS_62
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 event notifications are an integration/ops control; not configured in the default baseline."
+    - rule_id: CKV_AWS_144
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 cross-region replication is a prod DR control; not enabled in the default baseline."
+    - rule_id: CKV_AWS_145
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Default encryption is SSE-S3 (Amazon S3 managed keys); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_158
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_18
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (S3 access logging)] Server access logging is configured on the per-stack media bucket, which delivers to the audit-trails bucket, and on the admin console's registry bucket; the audit-trails and template-sync buckets do not log their own access, as AWS advises against a bucket logging to itself, and the shared runtime bucket has none; remaining build/artifact buckets deferred to prod audit hardening (threat model A015). The template-sync bucket's only dependable log target is itself, which AWS advises against: S3 logs every delivery as another access, so a self-logging bucket writes logs about its own log deliveries forever."
+    - rule_id: CKV_AWS_300
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 abort-incomplete-upload lifecycle rule is a prod hygiene control; not set in the default baseline."
+    - rule_id: CKV_AWS_338
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[DEFERRED TO PROD (observability)] Log retention <1yr in this toolkit; prod should extend retention per compliance requirements."
+    - rule_id: CKV_AWS_355
+      path: "infra-terraform/modules/templates/main.tf"
+      reason: "[FALSE POSITIVE] social-messaging (WhatsApp) API actions do not support resource-level ARNs; '*' resource is required by the service, scoped by action."
+    # --- infra-terraform/packaging.tf ---
+    - rule_id: CKV2_AWS_62
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 event notifications are an integration/ops control; not configured in the default baseline."
+    - rule_id: CKV_AWS_144
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 cross-region replication is a prod DR control; not enabled in the default baseline."
+    - rule_id: CKV_AWS_145
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] Default encryption is SSE-S3 (Amazon S3 managed keys); a customer-managed KMS key is recommended for prod when the customer key policy requires it."
+    - rule_id: CKV_AWS_158
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (KMS-CMK)] CloudWatch log group uses default encryption; customer-managed CMK recommended for prod when customer key policy requires it."
+    - rule_id: CKV_AWS_18
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (S3 access logging)] Server access logging is configured on the per-stack media bucket, which delivers to the audit-trails bucket, and on the admin console's registry bucket; the audit-trails and template-sync buckets do not log their own access, as AWS advises against a bucket logging to itself, and the shared runtime bucket has none; remaining build/artifact buckets deferred to prod audit hardening (threat model A015)."
+    - rule_id: CKV_AWS_300
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (durability)] S3 abort-incomplete-upload lifecycle rule is a prod hygiene control; not set in the default baseline."
+    - rule_id: CKV_AWS_338
+      path: "infra-terraform/packaging.tf"
+      reason: "[DEFERRED TO PROD (observability)] Log retention <1yr in this toolkit; prod should extend retention per compliance requirements."

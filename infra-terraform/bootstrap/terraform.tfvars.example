@@ -1,0 +1,14 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+aws_region = "us-east-1"
+
+# Prefix for the shared account-wide buckets and the Terraform state buckets.
+# S3 bucket names are immutable: once this account has been bootstrapped, keep
+# this value as it is. Changing it makes Terraform replace the shared buckets,
+# and the runtime bucket's prevent_destroy will fail the plan rather than let
+# that happen. To adopt buckets created under an earlier prefix, set that
+# original prefix here instead of renaming them.
+project_prefix = "socialagent"
+
+environments = ["dev", "prod"]

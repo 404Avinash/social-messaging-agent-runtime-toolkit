@@ -1,0 +1,129 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, so advisories published after a merge still surface.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: codeql (${{ matrix.language }})
+    # Scheduled-event payloads do not carry repository visibility. Keep CodeQL
+    # off until a repository admin enables it after public code scanning is ready.
+    if: ${{ vars.CODE_SCANNING_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: /language:${{ matrix.language }}
+
+  # A single, stable check for branch protection. always() is intentional: a
+  # failed, skipped, or cancelled CodeQL job must not turn into a skipped gate.
+  codeql-gate:
+    name: codeql-gate
+    needs: [codeql]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: check the CodeQL result
+        env:
+          RESULT: ${{ needs.codeql.result }}
+          EXPECTED: ${{ vars.CODE_SCANNING_ENABLED == 'true' && 'success' || 'skipped' }}
+        run: |
+          echo "codeql: ${RESULT} (expected ${EXPECTED})"
+          if [ "${RESULT}" != "${EXPECTED}" ]; then
+            echo "::error::CodeQL finished '${RESULT}', expected '${EXPECTED}'"
+            exit 1
+          fi
+
+  ash:
+    name: ash (bandit + checkov + detect-secrets + npm-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      # ASH is published from its GitHub repository, not PyPI: the PyPI name
+      # belongs to an unrelated package. Pinned to the v3.7.1 commit.
+      - run: pip install "git+https://github.com/awslabs/automated-security-helper.git@af1206aff596f1288ad066828058b3011de2a998"
+      # .ash.yaml holds the reviewed suppression baseline, scoped per
+      # (rule_id, path) so a new rule — or the same rule in a new file — still
+      # fails the run.
+      - name: ash scan
+        run: ash --mode precommit --source-dir .
+
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"  # pragma: allowlist secret
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          # Full history: a secret removed from the tip is still a live secret.
+          fetch-depth: 0
+      # The gitleaks CLI is MIT-licensed and needs no secrets, so this job also
+      # runs on pull requests from forks. The gitleaks-action wrapper would need
+      # a license key on an organization-owned repository.
+      - name: install gitleaks
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -sSfLo gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+      - name: gitleaks
+        run: '"${{ runner.temp }}/gitleaks" git --redact --no-banner --verbose --exit-code 1 .'
+
+  # Static checks for the workflows themselves: actionlint for syntax and
+  # expression errors, zizmor for risky patterns (template injection,
+  # persisted credentials, unpinned actions). Both run from exact PyPI
+  # versions so a new release cannot change the result unannounced.
+  workflow-lint:
+    name: workflow-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      - name: actionlint
+        run: uvx --from actionlint-py==1.7.7.23 --with shellcheck-py==0.10.0.1 actionlint -color .github/workflows/*.yml
+      - name: zizmor
+        run: uvx zizmor==1.11.0 --no-online-audits --format github .github/workflows/

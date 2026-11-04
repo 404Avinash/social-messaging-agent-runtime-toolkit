@@ -1,0 +1,30 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Feature request
+description: Suggest a capability or a change to an existing one.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SMART favors explicit wiring over discovery (see "What maintainers check" in CONTRIBUTING.md). For significant work, open this issue before a pull request so the approach can be agreed first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to do and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would like SMART to do. Mention which layer it belongs to (CLI, Lambda control layer, agent runtime package, blueprint or recipe, Terraform, admin console), if you know.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use now, or other designs you thought about.

@@ -1,0 +1,81 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "socialagent"
+dynamic = ["version"]
+description = "Social Messaging Agent Runtime Toolkit — SDK for building WhatsApp AI agents on AgentCore"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = [
+    "boto3>=1.38.0",
+    "cryptography>=46.0.5",
+    "pyyaml>=6.0.3",
+    "rich>=14.3.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/awslabs/social-messaging-agent-runtime-toolkit"
+Repository = "https://github.com/awslabs/social-messaging-agent-runtime-toolkit"
+Issues = "https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues"
+Documentation = "https://github.com/awslabs/social-messaging-agent-runtime-toolkit/tree/main/docs"
+
+[project.scripts]
+socialagent = "socialagent.cli:main"
+
+[build-system]
+# >=1.27 is the floor for PEP 639: earlier hatchling rejects the SPDX-string
+# `license` and the `license-files` list above as a hard build error, not a
+# warning. Build backends resolve in build isolation and are absent from
+# uv.lock, so this bound is the only thing pinning them.
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+# VERSION is the one place the release number lives: pyproject, `socialagent
+# --version`, the CHANGELOG heading and the git tag all read or match it.
+path = "VERSION"
+pattern = "^(?P<version>\\S+)$"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/socialagent"]
+
+# blueprints/, recipes/ and packages/socialagent-runtime/ are template-as-code that the
+# CLI copies into new projects. They live at the repo root, so without this the
+# wheel ships the CLI but none of the data it needs and `socialagent init` fails on a
+# pip install. socialagent/cli/_assets.py resolves these packaged paths first.
+[tool.hatch.build.targets.wheel.force-include]
+"blueprints" = "socialagent/cli/_assets/blueprints"
+"recipes" = "socialagent/cli/_assets/recipes"
+"packages/socialagent-runtime" = "socialagent/cli/_assets/socialagent-runtime"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "slow: builds a wheel and installs it into a venv (deselect with '-m \"not slow\"')",
+    "architecture: enforces the layering rules in AGENTS.md (run with '-m architecture')",
+    "e2e: runs the real socialagent console script as a subprocess, AWS walled off (run with '-m e2e')",
+    "bedrock: e2e test that calls Amazon Bedrock; skipped unless SOCIALAGENT_E2E_BEDROCK=1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.7",
+    # Real DynamoDB conditional-expression semantics. A hand-rolled stub would
+    # assert against our own model of DynamoDB, which is worthless for bugs that
+    # live in the conditional expressions themselves. The console backend already
+    # depends on moto; only the dynamodb extra is needed here, not moto[all].
+    "moto[dynamodb]>=5.0",
+    # The e2e tests run `socialagent dev`, which imports a scaffolded agent.py
+    # in this interpreter. Same spec as the blueprints' requirements.txt.
+    "bedrock-agentcore[strands-agents]>=1.18.1",
+]
+
+[tool.ruff.lint]
+# projects/ handler files intentionally set up logging before imports (Lambda cold-start fix)
+# projects/ agent.py files have a comment block between imports by design
+per-file-ignores = { "projects/**/*.py" = ["E402"], "blueprints/**/*.py" = ["E402"] }

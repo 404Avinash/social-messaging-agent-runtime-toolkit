@@ -1,0 +1,7 @@
+pyyaml>=6.0
+# The log search asks FilterLogEvents for the newest lines first
+# (startFromHead, botocore 1.43.33 and later). The SDK the python3.12
+# runtime includes varies by Region and may predate it, so the package
+# ships its own.
+boto3>=1.43.33
+botocore>=1.43.33

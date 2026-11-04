@@ -1,0 +1,70 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# WhatsApp templates for this stack.
+#
+# Rules (Meta reclassifies as MARKETING, or rejects outright, otherwise):
+#   - No emojis at the start of the body
+#   - No branding or promotional language
+#   - Plain transactional text only
+#   - Variables cannot be at the start or end of the body
+#   - Few enough variables for the body length, or registration fails with
+#     "This template has too many variables for its length"
+#
+# All three bodies pass registration, so none fails the sync. Meta's own approval review is
+# asynchronous and separate: a template can register cleanly and still be
+# reclassified as MARKETING afterwards. `templates sync` exits non-zero on
+# rejection, so a bad body here fails `terraform apply` rather than passing
+# silently. See docs/templates.md.
+#
+# Sync: uv run socialagent templates sync --phone-number-id <ARN> --prefix <prefix>
+templates:
+  - name: visit_reminder
+    category: UTILITY
+    language: en
+    components:
+      - type: BODY
+        text: "Visit reminder! You have an upcoming appointment to see the {{1}} at {{2}}. Location: {{3}}. See you soon!"
+        example:
+          body_text:
+            - ["Downtown Loft", "10:00 AM", "12 River St"]
+    variables:
+      - name: property
+        position: 1
+      - name: time
+        position: 2
+      - name: location
+        position: 3
+
+  - name: visit_reminder_es
+    category: UTILITY
+    language: es_MX
+    components:
+      - type: BODY
+        text: 'Recordatorio de visita. Tienes una cita para ver {{1}} a las {{2}}. Dirección: {{3}}. ¡Te esperamos!'
+        example:
+          body_text:
+            - - Downtown Loft
+              - 11:00 AM
+              - 12 River St
+    variables:
+      - name: property
+        position: 1
+      - name: time
+        position: 2
+      - name: location
+        position: 3
+  - name: visit_cancelled_by_business
+    category: UTILITY
+    language: en
+    components:
+      - type: BODY
+        text: "We're sorry — your visit to see the {{1}} has been cancelled. Reason: {{2}}. Reply to schedule a viewing of a different property."
+        example:
+          body_text:
+            - ["Downtown Loft", "No longer available"]
+    variables:
+      - name: property
+        position: 1
+      - name: reason
+        position: 2

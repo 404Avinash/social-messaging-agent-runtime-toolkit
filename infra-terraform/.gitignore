@@ -1,0 +1,9 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend-*.hcl
+!backend-*.hcl.example
+.terraform.lock.hcl
+*.zip

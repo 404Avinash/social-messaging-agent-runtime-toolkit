@@ -1,0 +1,1281 @@
+[
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "hola"
+   }
+  ],
+  "tracking_id": "4685b120-3e8a-4daa-a0a2-5c037ec42397"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3585,
+    "outputTokens": 139,
+    "totalTokens": 3724
+   },
+   "metrics": {
+    "latencyMs": 1687,
+    "timeToFirstByteMs": 1703
+   }
+  },
+  "tracking_id": "4144b8b9-17db-4661-b798-d1d5a97bf511"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "be92fd68-9cf6-4b07-9ef4-714be25cb348"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Bienvenido a Example Realty. Estos son nuestras propiedades disponibles para visitar:\n\n• Downtown Loft — $420,000\n• Garden House — $680,000\n• 2024 Parkview Apartment — $540,000\n\n¿Cuál te gustaría ver?",
+      "options": "Downtown Loft,Garden House,Parkview Apartment"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 4895,
+    "outputTokens": 232,
+    "totalTokens": 5127
+   },
+   "metrics": {
+    "latencyMs": 2402,
+    "timeToFirstByteMs": 2401
+   }
+  },
+  "tracking_id": "69e29f66-29b9-4566-ba92-7565741566aa"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "ab775797-c43e-4090-bcca-39521e56ac7e"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "Go"
+   }
+  ],
+  "tracking_id": "0898770d-e5b3-48c2-99f5-e70d4b377f10"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3672,
+    "outputTokens": 224,
+    "totalTokens": 3896
+   },
+   "metrics": {
+    "latencyMs": 2337,
+    "timeToFirstByteMs": 2364
+   }
+  },
+  "tracking_id": "8d7461d6-ab74-4be0-ae1e-1c2548e3f109"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "a51efe69-19d5-41a1-a441-e9402fccd998"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Bienvenido a Example Realty. ¿En qué puedo ayudarte hoy?\n\nEstos son nuestras propiedades disponibles para visita 🏠\n\n• Downtown Loft — $420,000\n• Garden House — $680,000\n• Parkview Apartment — $540,000\n\n¿Cuál te gustaría ver?",
+      "options": "Downtown Loft,Garden House,Parkview Apartment"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5067,
+    "outputTokens": 286,
+    "totalTokens": 5353
+   },
+   "metrics": {
+    "latencyMs": 3523,
+    "timeToFirstByteMs": 3525
+   }
+  },
+  "tracking_id": "c1fe12de-4b5b-419f-8725-7fc09af29d9b"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "a90a26b9-9cfb-42d7-b844-ce2ba5619c5d"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[Button reply: Downtown Loft]"
+   }
+  ],
+  "tracking_id": "d6b0ddf8-30f5-432b-842c-22ae9bb60b99"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3685,
+    "outputTokens": 101,
+    "totalTokens": 3786
+   },
+   "metrics": {
+    "latencyMs": 2687,
+    "timeToFirstByteMs": 2684
+   }
+  },
+  "tracking_id": "fca4c61b-27b6-47f7-b76a-02d06f2625cb"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "385092ba-0c4a-4a61-9c7c-7e0d1ea5ad23"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "list_menu",
+      "body": "¡Hola! 👋 Elegiste el *Downtown Loft — $420,000* 🏠\n\nEstos son los horarios disponibles para verlo en nuestra oficina (12 River St, Your City). Elige el que te funcione mejor 📅",
+      "button_text": "Ver horarios",
+      "options": "Jueves, Oct 15|Oct 15 9:00 AM~Mañana;Oct 15 10:00 AM~Mañana;Oct 15 5:00 PM~Tarde|Viernes, Oct 16|Oct 16 4:00 PM~Tarde;Oct 16 5:00 PM~Tarde|Sábado, Oct 17|Oct 17 9:00 AM~Mañana;Oct 17 12:00 PM~Mediodía;Oct 17 2:00 PM~Tarde"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 4957,
+    "outputTokens": 627,
+    "totalTokens": 5584
+   },
+   "metrics": {
+    "latencyMs": 4259,
+    "timeToFirstByteMs": 4258
+   }
+  },
+  "tracking_id": "aa30a249-1220-415a-afd1-f8b8eb6b9f43"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "b8ba9bd6-b840-47d2-9e41-d65648285d6f"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[List reply: Oct 17 9:00 AM — Mañana]"
+   }
+  ],
+  "tracking_id": "e9b73ac8-7503-413c-85c7-001e08d9c190"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3707,
+    "outputTokens": 151,
+    "totalTokens": 3858
+   },
+   "metrics": {
+    "latencyMs": 2118,
+    "timeToFirstByteMs": 2114
+   }
+  },
+  "tracking_id": "ffc41cd3-0733-4c61-a4f2-4a201be33e3b"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "77b9a66a-8f9e-416f-964e-168671ebcba0"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "rich_messages"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5029,
+    "outputTokens": 255,
+    "totalTokens": 5284
+   },
+   "metrics": {
+    "latencyMs": 2345,
+    "timeToFirstByteMs": 2341
+   }
+  },
+  "tracking_id": "dfb14d91-d3f1-40d4-bb6d-959e832f627f"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "c811ec69-aca4-41bd-8dbe-b2d598a68473"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Excelente elección! 🏠 Esto es lo que tengo para tu visita:\n\n• Propiedad: Downtown Loft — $420,000\n• Fecha y hora: Sábado, 17 de octubre a las 9:00 AM\n• Lugar: Downtown Loft, 12 River St, Your City\n\n¿Confirmas esta cita?",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 6780,
+    "outputTokens": 221,
+    "totalTokens": 7001
+   },
+   "metrics": {
+    "latencyMs": 2495,
+    "timeToFirstByteMs": 2489
+   }
+  },
+  "tracking_id": "fb25cc71-2fb7-4639-b099-69b03dbcea19"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "232eded2-d513-4a2c-b052-8a3c71b7f9bd"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[Button reply: Yes]"
+   }
+  ],
+  "tracking_id": "82e7d46b-8b65-4b49-a4be-c257afa36aec"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3716,
+    "outputTokens": 277,
+    "totalTokens": 3993
+   },
+   "metrics": {
+    "latencyMs": 2646,
+    "timeToFirstByteMs": 2642
+   }
+  },
+  "tracking_id": "e41806ea-ed3d-44c7-8001-f4677dbf3a89"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "4ac2f35e-253e-46e7-8326-5713911d5116"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Esto es lo que tengo para tu visita:\n\n🏠 Propiedad: Downtown Loft ($420,000)\n📅 Fecha y hora: Sábado, 17 de octubre a las 9:00 AM\n📍 Lugar: Downtown Loft, 12 River St, Your City\n\n¿Confirmas la cita?",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5164,
+    "outputTokens": 350,
+    "totalTokens": 5514
+   },
+   "metrics": {
+    "latencyMs": 3150,
+    "timeToFirstByteMs": 3161
+   }
+  },
+  "tracking_id": "dc76016f-fd2e-4c95-a785-8f32d03d46a8"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "22813084-ee6c-4a0f-9c25-4d26a55b9431"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[Button reply: No]"
+   }
+  ],
+  "tracking_id": "d16d8636-3dbd-49a7-9ac2-5c20b03fb029"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3723,
+    "outputTokens": 199,
+    "totalTokens": 3922
+   },
+   "metrics": {
+    "latencyMs": 4126,
+    "timeToFirstByteMs": 4119
+   }
+  },
+  "tracking_id": "9c880915-fb76-4ed2-ba09-18c482f3a522"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "56a7b656-a877-4f19-82fd-2ed42efa46cc"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Esto es lo que tengo para tu visita:\n\n🏠 Propiedad: Downtown Loft ($420,000)\n📅 Fecha y hora: Sábado, 17 de octubre a las 9:00 AM\n📍 Lugar: Downtown Loft, 12 River St, Your City\n\n¿Confirmas esta cita?",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5093,
+    "outputTokens": 477,
+    "totalTokens": 5570
+   },
+   "metrics": {
+    "latencyMs": 3780,
+    "timeToFirstByteMs": 3777
+   }
+  },
+  "tracking_id": "07b26a60-6709-48fe-af26-9c32380531bf"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "43921c05-a485-4572-b0ea-03a75af35594"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[Button reply: Yes]"
+   }
+  ],
+  "tracking_id": "cbd96796-ab9a-4422-801e-79b9c568e7fe"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3732,
+    "outputTokens": 201,
+    "totalTokens": 3933
+   },
+   "metrics": {
+    "latencyMs": 2826,
+    "timeToFirstByteMs": 2823
+   }
+  },
+  "tracking_id": "9ab3dd1e-c12a-42ed-b4d7-d4e17bb545d7"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "165a95aa-c437-441d-88bb-742330cfdfc3"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Veo que elegiste el *Downtown Loft* ($420,000) para el sábado 17 de octubre a las 9:00 AM.\n\n📍 Dirección: Example Realty, 12 River St, Your City\n\n¿Confirmo tu visita en ese horario? Responde Sí o No.",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5104,
+    "outputTokens": 396,
+    "totalTokens": 5500
+   },
+   "metrics": {
+    "latencyMs": 3988,
+    "timeToFirstByteMs": 3988
+   }
+  },
+  "tracking_id": "31684ab5-3bdb-4213-bdd7-da7a82f0edb7"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "b857bd12-c094-4135-992e-4be129f46ddb"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[Button reply: No]"
+   }
+  ],
+  "tracking_id": "86fc7f78-7132-42ba-bff7-85b348696ccb"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3739,
+    "outputTokens": 281,
+    "totalTokens": 4020
+   },
+   "metrics": {
+    "latencyMs": 3259,
+    "timeToFirstByteMs": 3257
+   }
+  },
+  "tracking_id": "93abfe85-98de-41c4-bf5c-1746c6636e8d"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "ee349545-575f-4aee-b5c4-0a2709ea8cf5"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Veo que elegiste el *Downtown Loft* ($420,000) para el *sábado 17 de octubre a las 9:00 AM*.\n\n📍 Dirección: Downtown Loft, 12 River St, Your City\n\n¿Confirmas esta visita?",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5191,
+    "outputTokens": 306,
+    "totalTokens": 5497
+   },
+   "metrics": {
+    "latencyMs": 4178,
+    "timeToFirstByteMs": 4178
+   }
+  },
+  "tracking_id": "3ca1adaa-2e27-4ddb-9678-e6db9b7468f3"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "d3664fa7-f2a3-4e62-8891-e79b9b34a990"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[Button reply: Yes]"
+   }
+  ],
+  "tracking_id": "af9eb4bf-5115-4cd5-9016-156e01e20748"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3748,
+    "outputTokens": 239,
+    "totalTokens": 3987
+   },
+   "metrics": {
+    "latencyMs": 3078,
+    "timeToFirstByteMs": 3075
+   }
+  },
+  "tracking_id": "a86baa07-dfb4-4380-96d9-c8ba41785459"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "34666ebc-7323-4b78-82dd-9401ea741b74"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Tengo tu selección de visita:\n\n🏠 Propiedad: Downtown Loft — $420,000\n📅 Fecha y hora: Sábado, 17 de octubre a las 9:00 AM\n📍 Dirección: 12 River St, Your City\n\n¿Confirmas esta cita?",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5158,
+    "outputTokens": 443,
+    "totalTokens": 5601
+   },
+   "metrics": {
+    "latencyMs": 3442,
+    "timeToFirstByteMs": 3439
+   }
+  },
+  "tracking_id": "6df508ca-dc88-46ab-8029-59f500d99323"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "1edc2dc0-bccd-4274-9af1-13d651ba14ba"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[Button reply: Yes]"
+   }
+  ],
+  "tracking_id": "f857860d-e6ec-4ff9-879a-b95ef357151b"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3757,
+    "outputTokens": 203,
+    "totalTokens": 3960
+   },
+   "metrics": {
+    "latencyMs": 2890,
+    "timeToFirstByteMs": 2887
+   }
+  },
+  "tracking_id": "16d32dac-2d8d-4a43-8457-7efeaa8d2bd5"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "f340d9b8-da59-414a-b645-a05f67b172d6"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Veo que elegiste el *Downtown Loft* ($420,000) para el *sábado 17 de octubre a las 9:00 AM*.\n\n📍 Dirección: Example Realty, 12 River St, Your City\n\nTus respuestas anteriores llegaron un poco desordenadas, así que no he reservado nada todavía. ¿Confirmas esta visita?",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5131,
+    "outputTokens": 454,
+    "totalTokens": 5585
+   },
+   "metrics": {
+    "latencyMs": 3927,
+    "timeToFirstByteMs": 3927
+   }
+  },
+  "tracking_id": "92ec5dd2-eb3e-4768-8265-34ca32f9d0d9"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "0077492f-17e3-48b8-aade-b6438f7feb82"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "text": "[User sent a sticker]"
+   }
+  ],
+  "tracking_id": "6ecd70e3-68ff-4388-88f1-f89827a37268"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "load_skill",
+     "input": {
+      "skill_name": "slot_selection"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 3765,
+    "outputTokens": 172,
+    "totalTokens": 3937
+   },
+   "metrics": {
+    "latencyMs": 3251,
+    "timeToFirstByteMs": 3249
+   }
+  },
+  "tracking_id": "cf71abaf-afba-474b-9528-6603a161d3be"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "00a95704-0d87-436e-9911-947938dde30b"
+ },
+ {
+  "role": "assistant",
+  "content": [
+   {
+    "reasoningContent": {
+     "reasoningText": {
+      "text": "",
+      "signature": "sig"
+     }
+    }
+   },
+   {
+    "toolUse": {
+     "toolUseId": "tu",
+     "name": "attach_interactive",
+     "input": {
+      "message_type": "buttons",
+      "body": "¡Hola! 👋 Esto es lo que tengo para tu visita:\n\n🏠 Propiedad: Downtown Loft ($420,000)\n📅 Fecha: Sábado, 17 de octubre\n🕘 Hora: 9:00 AM\n📍 Dirección: 12 River St, Your City\n\n¿Confirmas esta cita?",
+      "options": "Yes,No"
+     }
+    }
+   }
+  ],
+  "metadata": {
+   "usage": {
+    "inputTokens": 5108,
+    "outputTokens": 438,
+    "totalTokens": 5546
+   },
+   "metrics": {
+    "latencyMs": 3966,
+    "timeToFirstByteMs": 3963
+   }
+  },
+  "tracking_id": "bd171930-49ad-470e-b51e-a7f1c1163806"
+ },
+ {
+  "role": "user",
+  "content": [
+   {
+    "toolResult": {
+     "toolUseId": "tu",
+     "status": "success",
+     "content": [
+      {
+       "text": "{...}"
+      }
+     ]
+    }
+   }
+  ],
+  "tracking_id": "ca3d20ca-6811-4f15-a380-ef2c0b6735c1"
+ }
+]

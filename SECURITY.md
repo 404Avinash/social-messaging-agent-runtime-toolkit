@@ -1,0 +1,32 @@
+# Security Policy
+
+## Reporting a Vulnerability
+
+If you discover a potential security issue in this project, we ask that you **do not** open a public GitHub issue, create a public pull request, or otherwise disclose it publicly.
+
+Instead, report it privately through the [AWS Vulnerability Disclosure Program on HackerOne](https://hackerone.com/aws_vdp) or by email to [aws-security@amazon.com](mailto:aws-security@amazon.com). For more details, see the [AWS Vulnerability Reporting](https://aws.amazon.com/security/vulnerability-reporting/) page.
+
+When reporting, please include as much of the following as you can:
+
+- A description of the vulnerability and its potential impact.
+- Steps to reproduce (a minimal proof of concept is ideal).
+- The affected version, commit, or deployment configuration.
+- Any suggested remediation, if you have one.
+
+You will receive an acknowledgement of your report, and we will keep you informed as we investigate and remediate.
+
+## Supported Versions
+
+SMART (Social Messaging Agent Runtime Toolkit) is **sample code** in beta and is not intended for production use as-is — see the Disclaimer in [README.md](README.md). The current release is the one in [`VERSION`](VERSION). Security fixes are applied to the `main` branch; there is no long-term-support or back-port guarantee for older tags.
+
+## Scope Notes for Deployers
+
+Because SMART is deployed into **your** AWS account and processes personal data (WhatsApp phone numbers and message content), some security controls are intentionally left to the deployer and documented as such (for example: VPC egress isolation, customer-managed KMS keys, PII log/response masking, and per-tenant API-key scoping). Review the toolkit against your own security, regulatory, and compliance requirements before deploying with real user data.
+
+Two SNS topics are unencrypted at rest by default, the inbound WhatsApp topic and the alarm topic, because the services that publish to them cannot use the AWS-managed SNS key; AWS Security Hub's SNS.1 control reports both. The `sns_kms_key_arn` Terraform variable encrypts both with a customer-managed key; [Encrypting the SNS topics](docs/configuration.md#encrypting-the-sns-topics-with-a-customer-managed-key) says why they are unencrypted by default and gives the key policy that key needs.
+
+Two defaults deserve a decision before real traffic. Per-user rate limiting is enforced only with the DynamoDB state table (`features.state_table: true`), which is off by default (the `personal-assistant` and `appointment-scheduler` blueprints turn it on in the `socialagent.dev.yaml` they ship): without it any WhatsApp user can drive unbounded paid model calls, and the webhook only logs a warning at cold start. And the Bedrock guardrail evaluates only the text of the model calls that pass it, a PDF summary treated as unguarded, and a custom agent must pass it itself ([Guardrails](docs/configuration.md#guardrails) says which calls pass it). Its blocked messages default to English, and all its filters but the PII ones support only English, French and Spanish, where AWS says a guardrail is ineffective in a language it does not support ([the guardrail policy](docs/configuration.md#the-guardrail-policy)). AWS Budgets alerts and webhook reserved concurrency are useful cost backstops.
+
+The edge is the deployer's too. Neither the stack nor the admin console creates an AWS WAF web ACL: attach a regional one to the event API's stage, and one with CloudFront scope, created in us-east-1, to the console's distribution. The console's API is an HTTP API, which AWS WAF does not support, so its Cognito JWT authorizer and the backend's per-route group check are what stand in front of it. Request logging is partial: the event API and the console's API have access logging to CloudWatch Logs, and two buckets configure S3 server access logging, the per-stack media bucket, which delivers to the audit-trails bucket under `s3-access-logs/conversation-logs/`, and the console's own registry bucket (created only when the console's `shared_runtime_bucket` is empty), which delivers to itself under `s3-access-logs/`. The console's CloudFront distribution and site bucket, the audit-trails bucket itself, the build buckets (the template-sync bucket among them), the Terraform state buckets and the shared runtime and artifacts buckets (`shared_runtime_bucket`, which also holds the console's registry under `admin/registry/`, and `shared_artifacts_bucket`) have none. AWS advises against a bucket logging to itself: S3 logs each delivery as one more access, so the bucket writes logs about its own log deliveries forever, even with no other traffic. So the audit-trails bucket, the stack's log destination, does not log its own access, and since the stack's CloudTrail trail records Bedrock data events only, nothing logs object-level access to the audit logs. The registry bucket logs to itself because the console has no other bucket for its logs, so a lifecycle rule expires them after about 90 days; the media bucket's logs are kept, like everything in the audit-trails bucket, until the deployer removes them. S3 delivers server access logs to a bucket with ACLs disabled, the default for new buckets, only if that bucket's policy lets `logging.s3.amazonaws.com` call `s3:PutObject`, so each target bucket's policy grants it that on the configuration's log prefix, for the source bucket and this account only; after a deploy, check that logs arrive under `s3-access-logs/`. With shared buckets there is no server access logging at all, and the stack's CloudTrail trail records Bedrock data events only, so nothing logs object-level access to conversation media. Turn on the logging your audit policy needs. And the console is served on CloudFront's default `*.cloudfront.net` certificate, on which CloudFront fixes the viewer security policy at `TLSv1`, so it accepts TLS 1.0 and 1.1; in production serve it on a custom domain with an ACM certificate and the `TLSv1.2_2021` policy ([Serving the console on a custom domain](docs/admin-console.md#serving-the-console-on-a-custom-domain)).
+
+See the [Threat Model](docs/threat-model.md) for the full trust-boundary analysis, threats, mitigations, and the accepted risks a production deployer must address.

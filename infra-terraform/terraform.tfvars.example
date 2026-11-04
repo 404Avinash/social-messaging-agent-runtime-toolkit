@@ -1,0 +1,143 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# =============================================================================
+# SMART Terraform Configuration
+# =============================================================================
+# Reference only: every variable with its default and a one-line description.
+# Nothing reads this file. Set values in a project's socialagent.<env>.yaml
+# (first-class fields, or the `terraform:` block for the rest); `socialagent
+# deploy` derives the tfvars from it, and `socialagent config tfvars` prints them.
+# Lines starting with # are commented out — uncomment to override defaults.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Required
+# -----------------------------------------------------------------------------
+
+project_name     = "my-whatsapp-bot"
+environment      = "dev"                # dev | test | prod
+agent_source_dir = "../projects/my-whatsapp-bot"   # Project directory (contains agent.py, socialagent_runtime/)
+handlers_dir     = "../projects/my-whatsapp-bot/handlers"
+
+# -----------------------------------------------------------------------------
+# WhatsApp — required for production, optional for dev
+# -----------------------------------------------------------------------------
+
+# phone_number_id = "phone-number-id-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # EUM Social phone number ARN
+# template_prefix = "dev_mybot_"                                        # Prefix for template names
+
+# Path to templates.yaml — needed for template sync AND Lambda layer bundling
+# templates_path = "../projects/my-whatsapp-bot/templates.yaml"
+
+# -----------------------------------------------------------------------------
+# Agent
+# -----------------------------------------------------------------------------
+
+agent_image_tag = "latest"
+# deployment_type  = "docker"           # docker | zip (zip = no Docker required)
+# dockerfile_path  = "Dockerfile"       # Relative to agent_source_dir
+
+# NOTE: The AgentCore Runtime and Lambdas run in PUBLIC network mode. VPC-based
+# network egress isolation is NOT part of this baseline. Add
+# network egress controls per your network policy before processing sensitive
+# data in prod.
+
+# -----------------------------------------------------------------------------
+# PII log masking (CloudWatch Logs data protection)
+# -----------------------------------------------------------------------------
+
+# enable_pii_log_protection  = true          # Mask phone numbers, names, emails in Lambda logs
+# pii_phone_number_countries = ["US", "BR"]  # CWL-supported only: BR, DE, ES, FR, GB, IT, US
+                                              # (+1 US/Canada -> "US"; Mexico/+52 NOT supported by CloudWatch Logs)
+
+# -----------------------------------------------------------------------------
+# Authentication (optional — secures AgentCore Runtime with JWT)
+# -----------------------------------------------------------------------------
+
+# authorizer_discovery_url   = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXXX/.well-known/openid-configuration"
+# authorizer_allowed_clients = ["your-cognito-client-id"]
+
+# Additional env vars passed to the AgentCore Runtime container:
+# agent_environment_variables = {
+#   MY_CUSTOM_VAR = "value"
+# }
+
+# -----------------------------------------------------------------------------
+# Brand — shown in agent conversations
+# -----------------------------------------------------------------------------
+
+# brand_name    = "Your Brand"
+# support_phone = "+52 55 0000 0000"
+# support_email = "soporte@yourbrand.com"
+# support_hours = "Lunes a Viernes, 9:00 - 18:00"
+# website       = "https://www.yourbrand.com"
+
+# -----------------------------------------------------------------------------
+# Optional Features
+# -----------------------------------------------------------------------------
+
+# enable_state_table           = false   # DynamoDB per-user key-value state
+# guardrail                    = "stack" # Bedrock content safety guardrail: stack, none, or the id or ARN of your own
+# guardrail_version            = ""      # Only with your own: a number or DRAFT (empty: its draft)
+# enable_security_logging      = true    # CloudTrail + Bedrock invocation logging
+# enable_testing_notifications = false   # SNS topic for dev/test email alerts
+# enable_inbound_attachments = true  # agent receives original images/documents (see docs/media.md)
+# enable_scheduler_lambda      = false   # Separate Lambda for @app.on_schedule handlers
+# enable_deployment_metrics    = true    # Anonymous deployment counting — see "Operational Metrics Collection" in README.md
+
+# -----------------------------------------------------------------------------
+# Guardrail policy — a change publishes a new guardrail version on deploy.
+# Defaults are English; a Spanish-speaking bot sets its own messages. No topic
+# is denied by default; the one below is an example to adapt.
+# -----------------------------------------------------------------------------
+
+# guardrail_blocked_input_message   = "Lo siento, no puedo ayudarte con esa solicitud. ¿En qué más puedo ayudarte?"
+# guardrail_blocked_output_message  = "Lo siento, no puedo compartir esa información. ¿Necesitas ayuda con algo más?"
+# guardrail_content_filter_strength = "MEDIUM"   # NONE, LOW, MEDIUM or HIGH
+# guardrail_denied_topics = [                    # default []: no denied topic
+#   {
+#     name       = "FinancialAdvice"
+#     definition = "Requests for financial advice, investment recommendations, or loan terms."
+#     examples   = ["Should I invest in this?", "What interest rate should I expect?"]
+#   },
+# ]
+
+# -----------------------------------------------------------------------------
+# Secrets — external API credentials stored in Secrets Manager
+# -----------------------------------------------------------------------------
+
+# secrets = {
+#   "my-api-creds" = {
+#     api_key  = "your-api-key"
+#     endpoint = "https://api.example.com"
+#   }
+# }
+
+# -----------------------------------------------------------------------------
+# Notifications
+# -----------------------------------------------------------------------------
+
+# alarm_email        = "ops@example.com"   # CloudWatch alarm notifications
+# notification_email = "dev@example.com"    # Dev/test SNS notifications
+
+# Customer-managed KMS key for the inbound WhatsApp topic and the alarm topic;
+# empty (default) leaves both unencrypted at rest. A key ARN only, no alias: the
+# key policy must let social-messaging.amazonaws.com and cloudwatch.amazonaws.com
+# use it. See "Encrypting the SNS topics with a customer-managed key" in
+# docs/configuration.md.
+# sns_kms_key_arn = "arn:aws:kms:us-east-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+
+# -----------------------------------------------------------------------------
+# Infrastructure
+# -----------------------------------------------------------------------------
+
+aws_region           = "us-east-1"
+enable_force_destroy = true              # Set false for production!
+
+# memory_event_expiry_days = 7           # Days to retain conversation events
+# log_retention_days       = 30          # Days to keep the event API's two log groups
+
+tags = {
+  Team = "my-team"
+}

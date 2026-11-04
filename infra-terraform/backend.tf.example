@@ -1,0 +1,16 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Example S3 backend configuration.
+# Copy to backend.hcl (or backend-dev.hcl / backend-prod.hcl) and fill in values.
+# Usage: terraform init -backend-config=backend-dev.hcl
+
+terraform {
+  backend "s3" {
+    bucket         = "your-terraform-state-bucket"
+    key            = "socialagent/dev/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "your-terraform-locks-table"
+    encrypt        = true
+  }
+}

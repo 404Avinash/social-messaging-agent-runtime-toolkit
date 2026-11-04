@@ -1,0 +1,43 @@
+{
+  "name": "socialagent-admin-console",
+  "private": true,
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "smoke:dev": "node scripts/smoke_dev_server.mjs"
+  },
+  "dependencies": {
+    "@aws-amplify/ui-react": "^6.15.3",
+    "@cloudscape-design/components": "^3.0.0",
+    "@cloudscape-design/global-styles": "^1.0.0",
+    "aws-amplify": "^6.16.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@cloudscape-design/test-utils-core": "^1.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "jsdom": "^24.0.0",
+    "typescript": "^5.4.0",
+    "vite": "^7.3.7",
+    "vitest": "4.1.12"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1",
+    "form-data": "^4.0.2",
+    "postcss": ">=8.5.18",
+    "ws": "^8.18.2"
+  }
+}

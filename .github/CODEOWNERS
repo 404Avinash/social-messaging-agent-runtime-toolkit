@@ -1,0 +1,26 @@
+# Review routing. GitHub requests a review from the owners of every path a pull
+# request touches; the branch protection on main requires one of them to approve.
+# Owners are the four maintainers in CONTRIBUTORS.md, by GitHub login, so keep the
+# two in step. GitHub ignores an owner without write access to the repository,
+# so each login needs it.
+
+# Everything, unless a line below is more specific
+*                                   @emolvera @digalaviz @art-aws @mfls-aws
+
+# The two runtime layers and the contract between them
+/src/socialagent/                   @emolvera @digalaviz @art-aws @mfls-aws
+/packages/socialagent-runtime/      @emolvera @digalaviz @art-aws @mfls-aws
+
+# Infrastructure: IAM, networking, data stores
+/infra-terraform/                   @emolvera @digalaviz @art-aws @mfls-aws
+
+# The admin console has its own stability bar
+/socialagent-admin-console/         @emolvera @digalaviz @art-aws @mfls-aws
+
+# CI and release machinery
+/.github/                           @emolvera @digalaviz @art-aws @mfls-aws
+
+# Security-sensitive documents need a maintainer who reviewed the threat model
+/docs/threat-model.md               @emolvera @digalaviz @art-aws @mfls-aws
+/docs/data-flows.md                 @emolvera @digalaviz @art-aws @mfls-aws
+/SECURITY.md                        @emolvera @digalaviz @art-aws @mfls-aws

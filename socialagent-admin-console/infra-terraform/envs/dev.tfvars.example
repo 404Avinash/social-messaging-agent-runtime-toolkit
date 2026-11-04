@@ -1,0 +1,13 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Copy to dev.tfvars and fill in your values (dev.tfvars is gitignored).
+project_name = "socialagent-admin"
+environment  = "dev"
+build_dir    = "../dist"
+
+# Initial admin users (Cognito is admin-create-only — users cannot self-register).
+admin_emails = ["you@example.com"]
+
+# Shared runtime bucket for the SMART stacks this console manages.
+shared_runtime_bucket = "socialagent-runtime-<account-id>"

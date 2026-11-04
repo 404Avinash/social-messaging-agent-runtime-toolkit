@@ -1,0 +1,89 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Weekly version updates for the root uv project, the admin console backend
+# and UI, the requirements each blueprint copies into a scaffolded project,
+# the Terraform provider constraints, and the actions these workflows use. Of
+# the three Terraform roots only the admin console's (`~> 5.0`) has a
+# constraint Dependabot can raise: the other two use open-ended `>=`
+# constraints and commit no lock file, so they get no update PRs until they
+# gain an upper bound or a lock file. The blueprint Dockerfiles are left out
+# on purpose: their base image is the floating python:3.12-slim tag, which
+# every CodeBuild run pulls fresh. The Python and npm entries group minor and
+# patch bumps, so a week of them arrives as one PR per entry; Terraform and
+# Actions updates arrive one PR each. The workflows pin every action to a full
+# commit SHA with the release tag in a trailing comment; Dependabot moves both.
+#
+# Every entry has a cooldown: a release is not proposed until it is 7 days old,
+# so a compromised or yanked version has time to be caught upstream before it
+# lands here. Major bumps wait 30 days where the ecosystem supports per-SemVer
+# cooldowns (uv, pip, npm); Terraform and Actions only take `default-days`.
+# Security updates ignore the cooldown and still open immediately.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /socialagent-admin-console/backend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
+
+  # Scaffolded projects install these as-is, so a vulnerable pin here ships to
+  # every adopter. The packaging suite in CI installs and boots each blueprint,
+  # which is what tests an update.
+  - package-ecosystem: pip
+    directories:
+      - /blueprints/minimal
+      - /blueprints/personal-assistant
+      - /blueprints/appointment-scheduler
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      blueprints-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /socialagent-admin-console
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      ui-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: terraform
+    directories:
+      - /infra-terraform
+      - /infra-terraform/bootstrap
+      - /socialagent-admin-console/infra-terraform
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

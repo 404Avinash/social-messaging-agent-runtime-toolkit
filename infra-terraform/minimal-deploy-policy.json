@@ -1,0 +1,222 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IAMRolesAndPolicies",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:PassRole", "iam:TagRole",
+        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy",
+        "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies", "iam:ListInstanceProfilesForRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/*socialagent*"
+    },
+    {
+      "Sid": "Lambda",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction", "lambda:DeleteFunction", "lambda:GetFunction",
+        "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
+        "lambda:AddPermission", "lambda:RemovePermission", "lambda:GetPolicy",
+        "lambda:PublishLayerVersion", "lambda:DeleteLayerVersion", "lambda:GetLayerVersion",
+        "lambda:TagResource", "lambda:ListTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "WebhookEventInvokeConfig",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:PutFunctionEventInvokeConfig", "lambda:GetFunctionEventInvokeConfig",
+        "lambda:UpdateFunctionEventInvokeConfig", "lambda:DeleteFunctionEventInvokeConfig"
+      ],
+      "Resource": "arn:<partition>:lambda:<region>:<account-id>:function:<environment>-<project-name>-webhook"
+    },
+    {
+      "Sid": "SchedulerEventInvokeConfig",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:PutFunctionEventInvokeConfig", "lambda:GetFunctionEventInvokeConfig",
+        "lambda:UpdateFunctionEventInvokeConfig", "lambda:DeleteFunctionEventInvokeConfig"
+      ],
+      "Resource": "arn:<partition>:lambda:<region>:<account-id>:function:<environment>-<project-name>-scheduler"
+    },
+    {
+      "Sid": "S3",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket", "s3:DeleteBucket", "s3:GetBucketPolicy", "s3:PutBucketPolicy",
+        "s3:GetBucketVersioning", "s3:PutBucketVersioning",
+        "s3:GetBucketPublicAccessBlock", "s3:PutBucketPublicAccessBlock",
+        "s3:GetLifecycleConfiguration", "s3:PutLifecycleConfiguration",
+        "s3:PutObject", "s3:GetObject", "s3:DeleteObject",
+        "s3:GetBucketAcl", "s3:GetBucketLocation", "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::*socialagent*"
+    },
+    {
+      "Sid": "SNS",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreateTopic", "sns:DeleteTopic", "sns:GetTopicAttributes", "sns:SetTopicAttributes",
+        "sns:Subscribe", "sns:Unsubscribe", "sns:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SQS",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:CreateQueue", "sqs:DeleteQueue", "sqs:GetQueueAttributes", "sqs:SetQueueAttributes", "sqs:TagQueue"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DynamoDB",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:CreateTable", "dynamodb:DeleteTable", "dynamodb:DescribeTable",
+        "dynamodb:UpdateTimeToLive", "dynamodb:DescribeTimeToLive", "dynamodb:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AgentCore",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:CreateAgentRuntime", "bedrock-agentcore:DeleteAgentRuntime",
+        "bedrock-agentcore:GetAgentRuntime", "bedrock-agentcore:UpdateAgentRuntime",
+        "bedrock-agentcore:CreateMemory", "bedrock-agentcore:DeleteMemory",
+        "bedrock-agentcore:GetMemory", "bedrock-agentcore:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECR",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository", "ecr:DeleteRepository", "ecr:DescribeRepositories",
+        "ecr:SetRepositoryPolicy", "ecr:GetRepositoryPolicy", "ecr:DeleteRepositoryPolicy",
+        "ecr:PutLifecyclePolicy", "ecr:GetLifecyclePolicy",
+        "ecr:GetAuthorizationToken", "ecr:BatchGetImage", "ecr:PutImage",
+        "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
+        "ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "APIGateway",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:POST", "apigateway:GET", "apigateway:PUT", "apigateway:DELETE", "apigateway:PATCH"
+      ],
+      "Resource": "arn:aws:apigateway:*::*"
+    },
+    {
+      "Sid": "CloudWatch",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy", "logs:TagResource",
+        "logs:PutResourcePolicy", "logs:DeleteResourcePolicy", "logs:DescribeResourcePolicies",
+        "cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms", "cloudwatch:DescribeAlarms",
+        "cloudwatch:PutDashboard", "cloudwatch:DeleteDashboards", "cloudwatch:GetDashboard"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CodeBuild",
+      "Effect": "Allow",
+      "Action": [
+        "codebuild:CreateProject", "codebuild:DeleteProject", "codebuild:UpdateProject",
+        "codebuild:BatchGetProjects", "codebuild:StartBuild", "codebuild:BatchGetBuilds"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EventBridgeScheduler",
+      "Effect": "Allow",
+      "Action": [
+        "scheduler:CreateScheduleGroup", "scheduler:DeleteScheduleGroup", "scheduler:GetScheduleGroup"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "KMS",
+      "Effect": "Allow",
+      "Action": [
+        "kms:CreateKey", "kms:CreateAlias", "kms:DeleteAlias",
+        "kms:DescribeKey", "kms:GetKeyPolicy", "kms:PutKeyPolicy",
+        "kms:EnableKeyRotation", "kms:ScheduleKeyDeletion", "kms:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManager",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret",
+        "secretsmanager:DescribeSecret", "secretsmanager:PutSecretValue",
+        "secretsmanager:GetSecretValue", "secretsmanager:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Bedrock",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:CreateGuardrail", "bedrock:DeleteGuardrail",
+        "bedrock:GetGuardrail", "bedrock:UpdateGuardrail",
+        "bedrock:CreateGuardrailVersion", "bedrock:TagResource",
+        "bedrock:PutModelInvocationLoggingConfiguration", "bedrock:GetModelInvocationLoggingConfiguration"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrail",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:CreateTrail", "cloudtrail:DeleteTrail",
+        "cloudtrail:GetTrail", "cloudtrail:PutEventSelectors",
+        "cloudtrail:GetEventSelectors", "cloudtrail:AddTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "XRay",
+      "Effect": "Allow",
+      "Action": [
+        "xray:UpdateTraceSegmentDestination", "xray:GetTraceSegmentDestination"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DeploymentMetricsStack",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateStack", "cloudformation:DeleteStack",
+        "cloudformation:UpdateStack", "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents", "cloudformation:GetTemplate"
+      ],
+      "Resource": "arn:aws:cloudformation:*:*:stack/*-deployment-metrics/*"
+    },
+    {
+      "Sid": "DeploymentMetricsParameter",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:PutParameter", "ssm:DeleteParameter",
+        "ssm:GetParameter", "ssm:GetParameters",
+        "ssm:AddTagsToResource", "ssm:RemoveTagsFromResource",
+        "ssm:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:ssm:*:*:parameter/*/deployment-metrics/tracking-code"
+    },
+    {
+      "Sid": "STS",
+      "Effect": "Allow",
+      "Action": ["sts:GetCallerIdentity"],
+      "Resource": "*"
+    }
+  ]
+}

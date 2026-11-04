@@ -1,0 +1,1090 @@
+{
+  "schema": 1,
+  "applicationInfo": {
+    "name": "Threat Model Export",
+    "description": "Social Messaging Agent Runtime Toolkit (SMART) is a Python SDK/framework that connects WhatsApp messaging to AI agents hosted on Amazon Bedrock AgentCore Runtime. It provides a two-layer architecture: a Lambda control layer (4 functions: webhook, notification, event, scheduler) that handles WhatsApp message ingestion via AWS End User Messaging Social, and an Agent Runtime package that runs inside AgentCore containers alongside developer agent code. The system supports inbound/outbound messaging, media transcription (Amazon Transcribe), voice synthesis (Amazon Polly), scheduled messages (EventBridge), external event ingestion (API Gateway), per-user state (DynamoDB), conversation memory (AgentCore Memory), and content safety (Bedrock Guardrails). An admin console (React/Amplify/Cognito) provides management capabilities. The toolkit is designed as a reusable open-source toolkit for deployers building conversational AI on WhatsApp."
+  },
+  "architecture": {
+    "description": ""
+  },
+  "dataflow": {
+    "description": ""
+  },
+  "assumptions": [
+    {
+      "id": "A001",
+      "numericId": 1,
+      "content": "AWS EUM Social service handles Meta WhatsApp webhook validation and TLS termination",
+      "displayOrder": 1,
+      "metadata": []
+    },
+    {
+      "id": "A002",
+      "numericId": 2,
+      "content": "AgentCore Runtime provides network isolation and container sandboxing for agent code",
+      "displayOrder": 2,
+      "metadata": []
+    },
+    {
+      "id": "A003",
+      "numericId": 3,
+      "content": "All inter-service communication uses AWS SDK with IAM-based authentication over TLS",
+      "displayOrder": 3,
+      "metadata": []
+    },
+    {
+      "id": "A004",
+      "numericId": 4,
+      "content": "The system is deployed as a reusable open-source toolkit \u2014 developers will write custom agent code",
+      "displayOrder": 4,
+      "metadata": []
+    },
+    {
+      "id": "A005",
+      "numericId": 5,
+      "content": "WhatsApp phone numbers serve as user identifiers and session keys",
+      "displayOrder": 5,
+      "metadata": []
+    },
+    {
+      "id": "A006",
+      "numericId": 6,
+      "content": "Bedrock Guardrails module is enabled by default (guardrail: stack), and the ID and version of the chosen guardrail, the stack's or one of the project's own named in guardrail, are passed to the AgentCore Runtime and the webhook Lambda",
+      "displayOrder": 6,
+      "metadata": []
+    },
+    {
+      "id": "A007",
+      "numericId": 7,
+      "content": "DynamoDB state table is optional and may not be deployed in all installations",
+      "displayOrder": 7,
+      "metadata": []
+    },
+    {
+      "id": "A008",
+      "numericId": 8,
+      "content": "Threat T4 (SNS forgery) is resolved: the signing certificate is fetched only from an anchored sns.<region>.amazonaws.com (or .com.cn) host, so a forger cannot choose the certificate their signature is checked against, and with phone number filtering a forged message from outside AWS is rejected",
+      "displayOrder": 8,
+      "metadata": []
+    },
+    {
+      "id": "A009",
+      "numericId": 9,
+      "content": "Threat T12 (cross-user session access) is resolved: session IDs derive from validated SNS payload, not user input, making manipulation impossible without SNS signature forgery",
+      "displayOrder": 9,
+      "metadata": []
+    },
+    {
+      "id": "A010",
+      "numericId": 10,
+      "content": "Threat T13 (S3 bucket exposure) is resolved: all 4 public access blocks enabled, bucket policy denies insecure transport, SSE-S3 encryption at rest, and the only URL generated is the generate-image recipe's one-hour presigned link to the image it stored, a fallback when the WhatsApp upload returns no media id",
+      "displayOrder": 10,
+      "metadata": []
+    },
+    {
+      "id": "A011",
+      "numericId": 11,
+      "content": "Threat T10 (insider admin full compromise) accepted as residual risk: mitigated by CloudTrail auditing, KMS key rotation, and IAM least-privilege but cannot be fully prevented",
+      "displayOrder": 11,
+      "metadata": []
+    },
+    {
+      "id": "A012",
+      "numericId": 12,
+      "content": "Threats T5/T6 (malicious agent developer) are partially mitigated and carry Medium residual risk. VPC-based egress isolation is not part of the default baseline (accepted risk); the AgentCore runtime and Lambdas run in PUBLIC network mode. Container isolation limits blast radius and least-privilege IAM restricts accessible resources, but there is no network-layer egress control. Malicious agent code with an outbound internet path could exfiltrate data to external endpoints. Likelihood is reduced by least-privilege IAM and default-on Bedrock guardrails; the recommended code review/signing control (M4, A013) further reduces the chance of malicious code reaching the runtime. VPC egress isolation is heavier infrastructure deferred to production per the deployer's network policy. Production deployments should add network egress controls before processing sensitive data.",
+      "displayOrder": 12,
+      "metadata": []
+    },
+    {
+      "id": "A013",
+      "numericId": 13,
+      "content": "Agent code review and signing (M4) is documented as a future enhancement. With no VPC egress isolation in the baseline (accepted risk, A012), code review/signing is the primary preventive control against data exfiltration by malicious agent code, not merely defense-in-depth.",
+      "displayOrder": 13,
+      "metadata": []
+    },
+    {
+      "id": "A014",
+      "numericId": 14,
+      "content": "Threat T7 (compromised external system) remains at Medium residual risk. The Event API rate limit (5 req/s) and secret rotation provide partial mitigation, but a leaked webhook secret enables event injection until rotated.",
+      "displayOrder": 14,
+      "metadata": []
+    },
+    {
+      "id": "A015",
+      "numericId": 15,
+      "content": "Accepted Risk (static-analysis suppressions): Every suppression in .ash.yaml (Checkov, Bandit, detect-secrets, and Semgrep/Opengrep for the wider registry packs) is scoped to one rule in one file and states its category and rationale; most defer a production hardening control to the deployer, and most Semgrep entries repeat the Checkov call on the same control. The most relevant: CKV_AWS_117 (Lambdas outside a VPC) is the accepted risk in A012 for the data-plane Lambdas; CKV_AWS_115 (Lambda reserved concurrency) is a production DoS-isolation control left to the deployer; CKV_AWS_272 (Lambda code signing) requires an organizational AWS Signer profile (the M4 control, A013); CKV_AWS_124 (stack-event notifications to SNS) is by design on the deployment-metrics stack (C033), which holds one SSM parameter; CKV_AWS_174 accepts viewer TLS 1.0/1.1 on the admin console's CloudFront distribution, because the default *.cloudfront.net certificate pins TLSv1 (a custom domain with an ACM certificate and TLSv1.2_2021 is the hardening, docs/admin-console.md); CKV_AWS_68 and CKV2_AWS_29 leave a WAF web ACL on the admin console's CloudFront distribution and on the event API to the deployer, and CKV_AWS_18 and CKV_AWS_86 leave server access logging off on the build and artifact buckets, the Terraform state and shared runtime buckets, and the admin console's site bucket and distribution; the per-stack media bucket configures it, delivering to the audit-trails bucket, and so does the console's own registry bucket (created only when the console's shared_runtime_bucket is empty), delivering to itself under a lifecycle rule that expires those logs, and each target bucket's policy grants logging.s3.amazonaws.com, which S3 needs to deliver to a bucket with ACLs disabled; the audit-trails and template-sync buckets do not log their own access, as AWS advises against a bucket logging to itself; in shared-bucket mode none is configured, and the stack's CloudTrail trail records Bedrock data events only (infra-terraform/modules/security-logging/main.tf), so there object-level access to conversation media is not logged until a deployer adds the logging (SECURITY.md); B303 accepts SHA1 because SNS SignatureVersion 1 signs with it (A008); and iam:PassRole in the admin console's API policy is required by UpdateAgentRuntime and scoped to this account's *-agentcore-runtime roles. A reader can resolve every suppressed rule ID to a written rationale in .ash.yaml, and each one that cites this threat model to the record it cites, without out-of-band context. Suppressions that reference threat-model rationale are explained alongside it.",
+      "displayOrder": 15,
+      "metadata": []
+    },
+    {
+      "id": "A016",
+      "numericId": 16,
+      "content": "Accepted Risk (bring-your-own-ECR CodeBuild grant): When a stack creates its own ECR repository, the CodeBuild role's push/pull actions are pinned to that repository's ARN; when the deployer brings their own repository, the same actions fall back to arn:aws:ecr:<region>:<account>:repository/* \u2014 scoped to the deployer's own account and region, never Resource=\"*\" and never cross-account. During a build, CodeBuild could push/pull any ECR repository in the deployer's own account; the build role is only assumable by the deploy pipeline. The target repository ARN is a deploy-time choice not known to the IaC at plan time, so account+region scoping is the tightest static bound. A deployer can pin the policy to their exact repository ARN.",
+      "displayOrder": 16,
+      "metadata": []
+    },
+    {
+      "id": "A017",
+      "numericId": 17,
+      "content": "Anonymous deployment metrics are read by AWS from its own CloudFormation control plane; beyond the deployer's own CloudFormation calls that create and update the marker stack, the deploying account initiates no egress for them. The only ingestion path is the stack description, which AWS already sees for every CloudFormation stack, so the marker adds a value to a field AWS reads rather than a channel out of the account. Nothing in this repository reads the parameter back, and ingestion cannot be confirmed from the deploying account, so conformance to the documented description format, which ends with the parenthesised tracking code and the (tag:core) suffix, is the only assurance. The flag defaults to true because ingestion is only via the stack description: adopters who deployed before the marker existed are not counted unless they redeploy or update to a release that includes it, so it ships enabled from the first public release rather than being added later.",
+      "displayOrder": 17,
+      "metadata": []
+    },
+    {
+      "id": "A018",
+      "numericId": 18,
+      "content": "Accepted Risk (deployment-metrics marker tampering): Threat T18 (insider tampering with the deployment-metrics marker) is accepted as residual risk: nothing in the solution stops a principal with write access to the deploying account from altering or deleting that account's own marker stack or overwriting its SSM parameter. The impact is limited to AWS's deployment count for this solution. Nothing in the deployment depends on the marker stack or reads its parameter, so the deployment itself is unaffected. The insider already controls the deploying account and the marker stack is that account's own resource, so, as with T10 (A011), this is a risk to accept rather than one the solution can prevent. Deleting the stack does no more than the documented opt-out (M26), which removes the same stack.",
+      "displayOrder": 18,
+      "metadata": []
+    },
+    {
+      "id": "A019",
+      "numericId": 19,
+      "content": "Accepted Risk (malicious agent developer): Threats T5 and T6 (malicious agent developer) are accepted as residual risk: SMART deploys and runs whatever agent code the deployer supplies, and it cannot tell legitimate code from malicious code. Malicious agent code can use the runtime's IAM permissions and outbound network path, and code in the project's handlers/ runs in the Lambda functions with their roles. Least-privilege roles (M13) and, for the runtime, container isolation (M20) bound what it can reach, but the baseline has no egress control (A012). Deploying agent code requires write access to the deploying account, so the agent developer is a principal the deployer already trusts, as with T10 (A011) and T18 (A018). The preventive controls, code review and signing (M4, A013) and egress isolation (M3), belong to the deployer's own pipeline and network policy, which the toolkit leaves to the deployer.",
+      "displayOrder": 19,
+      "metadata": []
+    },
+    {
+      "id": "A020",
+      "numericId": 20,
+      "content": "Accepted Risk (prompt injection): Threat T1 (prompt injection) is mitigated, not resolved: no control stops a crafted message, document or tool result from steering the model. What a steered agent can do is bounded: guardrail prompt-attack filtering on the agent's model calls, in English, French and Spanish (M8), replies pinned to the sender and the WhatsApp envelope pinned against payloads (M28), schedules scoped to the caller (M24), media uploads limited to the media roots (M29), and the runtime's least-privilege role (M13). Tools a project adds are outside these bounds unless they keep the same rules. Prompt injection is an open problem for LLM agents, so the toolkit keeps every agent-reachable action scoped to the calling user instead of relying on the model to refuse. T1 is therefore recorded as Identified with this accepted risk, not Resolved, although every control above is implemented.",
+      "displayOrder": 20,
+      "metadata": []
+    },
+    {
+      "id": "A021",
+      "numericId": 21,
+      "content": "Accepted Risk (rate limiting off by default): Threat T2 (message flood) is only partly mitigated in a default deployment: the per-user rate limiter (M2) needs the DynamoDB state table, which is off by Terraform default and in the minimal blueprint, the one socialagent init scaffolds unless told otherwise, so the configured limit of 20 messages a minute is not enforced, and the webhook logs one warning at cold start to say so. Any WhatsApp user can drive unbounded paid model and tool calls until the deployer enables the state table. A project scaffolded from the personal-assistant or appointment-scheduler blueprint has it on in the socialagent.dev.yaml that socialagent init writes, because both keep per-user state, and socialagent config init --env <env> copies it into a file it writes for another environment; a project from the minimal blueprint and any file without features.state_table: true leave it off. Lambda concurrency and the schedule caps (M7) still bound the damage. The state table is optional (A007) so the smallest deployment stays small. A deployer exposing a bot to the public should set features.state_table: true and consider webhook reserved concurrency and AWS Budgets alerts (see SECURITY.md). T2 and M2 are therefore recorded as Identified until the limiter works in a default deployment.",
+      "displayOrder": 21,
+      "metadata": []
+    },
+    {
+      "id": "A022",
+      "numericId": 22,
+      "content": "Design Scope (global admin console RBAC): The admin console's three groups apply to every registered stack: viewer reads the Stacks page, operator reads everything and makes non-destructive changes, and admin adds destructive operations, update-sns-destination (a named topic or the forced shared-WABA override), settings and user management. An operator can still point a WABA at a registered stack's own topic through bind, or move it between registered stacks with unbind and bind, but never at a topic outside the registry. There is no per-stack authorization, and the Schedules routes reach every EventBridge schedule in the console's region. A console user, or a stolen console credential (T8), can act on every stack the console registers. The registry bucket is a trust input: whoever can write it decides which stacks, topics and event API hosts the console acts on, within the checks of M31. By design for a console run by the one team that owns every stack it registers. Stacks owned by different teams should get one console each.",
+      "displayOrder": 22,
+      "metadata": []
+    }
+  ],
+  "mitigations": [
+    {
+      "id": "d8e63099-e426-4d83-93bc-59fe16249eff",
+      "numericId": 1,
+      "status": "mitigationResolved",
+      "content": "Deploy Bedrock Guardrails by default (guardrail: stack)",
+      "displayOrder": 1,
+      "metadata": []
+    },
+    {
+      "id": "938e642f-eae7-4776-a31b-9324a20cdc1e",
+      "numericId": 2,
+      "status": "mitigationIdentified",
+      "content": "Implement per-user rate limiting at webhook Lambda level to prevent single-user DoS. Partially implemented. The webhook limiter (rate_limit_per_minute, default 20 messages per user per minute) keeps its counters in the DynamoDB state table, so it is enforced only when that table exists (features.state_table / enable_state_table, default false; the socialagent.dev.yaml the personal-assistant and appointment-scheduler blueprints ship turns it on, socialagent config init copies it into a file it writes for another environment, and the minimal blueprint leaves it off). Without it every message is allowed and the webhook logs one WARNING at cold start; DynamoDB errors also fail open. Accepted for the default baseline as A021.",
+      "displayOrder": 2,
+      "metadata": []
+    },
+    {
+      "id": "c62f0a5d-79f1-4fc7-b7dc-38b1e0807415",
+      "numericId": 3,
+      "status": "mitigationIdentified",
+      "content": "Add network egress controls to AgentCore Runtime to prevent data exfiltration by agent code. Not implemented. VPC-based egress isolation is not part of the default baseline (accepted risk A012); the runtime and Lambdas run in PUBLIC network mode. With no egress control in the baseline, agent code review/signing (M4) is the primary preventive control and is itself a future enhancement (A013). Residual risk for T5/T6 is Medium (consistent with A012): the T5/T6 prerequisite is deploy access to the AgentCore Runtime, i.e. the stack owner, and SMART is single-tenant-per-stack \u2014 so the blast radius is the owner's own isolated stack, with no cross-tenant data to reach (T6's \"other tenants\" do not exist within a stack). Container isolation limits blast radius and least-privilege IAM restricts accessible resources. Production deployers must add egress controls before processing sensitive data.",
+      "displayOrder": 3,
+      "metadata": []
+    },
+    {
+      "id": "e0b573c7-705e-4eb4-876c-2597fd5483f3",
+      "numericId": 4,
+      "status": "mitigationIdentified",
+      "content": "Implement agent code review and signing process before deployment to AgentCore Runtime",
+      "displayOrder": 4,
+      "metadata": []
+    },
+    {
+      "id": "d81665aa-04d0-42a2-b53d-ec93e985c706",
+      "numericId": 5,
+      "status": "mitigationResolved",
+      "content": "Enforce MFA as required (not optional) for Admin Console Cognito authentication",
+      "displayOrder": 5,
+      "metadata": []
+    },
+    {
+      "id": "ac57af78-9b6f-492b-a13a-a701a369f18d",
+      "numericId": 6,
+      "status": "mitigationIdentified",
+      "content": "Add PII scrubbing from CloudWatch Logs before storage. Partially implemented. The SDK names a user in its own log lines by the last four digits of the phone number, however the number is formatted (mask_phone: socialagent.utils.phone in the Lambdas and blueprint handlers, socialagent_runtime.phone in the agent runtime; session, actor and schedule ids built from the number are cut the same way), and outside dev mode those lines carry no message, reminder or template text. Two gaps remain in those lines: a WhatsApp message id (wamid), which encodes the user's number, is logged whole by the attachment warnings and the personal-assistant webhook's PDF warning, and names the staged object under media/inbound/; and an exception's own text, which can quote the number, is logged unmasked in a traceback and in some warnings that quote the error, such as the agent runtime's session_read_recovered. CloudWatch Logs data protection (aws_cloudwatch_log_data_protection_policy with Deidentify/MaskConfig for phone/email/name identifiers) is applied to the webhook, notification and event Lambda log groups, and the scheduler's when enable_scheduler_lambda is set, and is enabled by default (enable_pii_log_protection = true). It masks phone numbers only for the countries in pii_phone_number_countries (default US, BR): CloudWatch Logs has no identifier for Mexico (+52), and a principal with logs:Unmask reads the original. Not covered: the agent runtime's log group, which has no data protection policy and where the model-backed blueprints' OpenTelemetry instrumentation (ADOT) records each turn's prompts and replies; the admin backend API, which returns unmasked fullPhone and plaintext message bodies, a separate data path from log storage; and a project whose vendored socialagent_runtime/ and personal-assistant handlers predate mask_phone, until socialagent runtime update replaces the runtime and the handlers are edited by hand. Remaining work: mask the message id and the exception text in the SDK's own lines, mask the runtime's log group, and mask/authorize-and-audit those API responses. Accepted as a documented residual for the non-production baseline. (M8 \u2014 Bedrock Guardrail PII blocking on model I/O \u2014 is a distinct control and does not close any of these gaps.)",
+      "displayOrder": 6,
+      "metadata": []
+    },
+    {
+      "id": "981a6093-71f9-421a-8e69-17a04e44f078",
+      "numericId": 7,
+      "status": "mitigationResolved",
+      "content": "Implement EventBridge schedule creation limits per user to prevent schedule spam. A per-user active-schedule cap (MAX_SCHEDULES_PER_USER, default 10) bounds creation. Its count of the user's schedules and the create run as one step under a lock, so the tool calls of one model message, which Strands runs concurrently, cannot all pass the cap on the same count; the lock covers one runtime process, and a user's conversation turns all run in that user's one AgentCore session. Recurring schedules also enforce a minimum recurrence interval (MIN_CRON_INTERVAL_MINUTES, 15 min): the cron minute field is expanded into the minutes it fires at, so every-minute and sub-interval expressions are rejected in any form (*/5, EventBridge's start/step 0/5, comma mixtures such as */1,*/15). personal-assistant's invoke_agent handler, the one shipped schedule handler that starts an agent turn, gets the same spacing from the blueprint's tools: schedule_task refuses a one-shot task due in under MIN_CRON_INTERVAL_MINUTES, and schedule_reminder, schedule_task and schedule_recurring create nothing inside a scheduled task, which they recognise by the AgentCore session id the handler runs it in (scheduled-task-\u2026, read with BedrockAgentCoreContext.get_session_id()), so a task cannot schedule itself again. Tests pin both checks, the session check against the id the handler sends. So a prompt-injected agent cannot create a schedule that starts agent turns more often than every 15 minutes, directly or through a task. Without a new message from the user, a user's schedules fire at most 40 times an hour at the default cap (10 recurring schedules at the floor) while the cap holds, each an agent turn or a reminder with a business-initiated template, which no rate limit counts (M2 covers only the webhook), until the user cancels them; the recipient stays the user's own phone (M28). The cap counts only the schedules the caller owns, and operation names are restricted (M24), so one user cannot spend another's cap. The cap fails open if listing schedules errors. Not covered: a project tool that calls scheduler.schedule itself gets the cap and the cron floor but not the task checks. An existing project gets the cap's lock and the 0/5 form of the floor only once its vendored socialagent_runtime/scheduler.py is replaced, and the task checks only once it takes the blueprint's src/tools/__init__.py, which is project-owned.",
+      "displayOrder": 7,
+      "metadata": []
+    },
+    {
+      "id": "2216922d-534a-4eb9-a233-005385923e7c",
+      "numericId": 8,
+      "status": "mitigationResolved",
+      "content": "Deploy Bedrock Guardrails with prompt attack detection, PII blocking, content filters, and configurable topic denials. The two model-backed blueprints (personal-assistant and appointment-scheduler) apply the configured guardrail to every agent model call via BedrockModel(guardrail_id=\u2026, guardrail_version=\u2026), sourced from AgentConfig; one Terraform variable, guardrail, chooses the guardrail, the stack's (stack, the default), none (none) or one of the project's own by id or ARN, and Terraform plumbs it as BEDROCK_GUARDRAIL_ID/_VERSION to the runtime and the webhook Lambda, keys agent.environment may not set (docs/configuration.md, Guardrails). The stack's guardrail is always used at a numbered version, which Terraform publishes again whenever the policy changes, so a policy change reaches both on the next deploy; a guardrail of the project's own carries the project's own policy, at guardrail_version or its draft. A project sets the blocked messages, the denied topics and the filter strength with the guardrail_* Terraform variables; the defaults are English messages and no denied topic, so topic denials apply only once a project lists the topics its bot must refuse. Not covered: guardrail: none turns the guardrail off for every call; the stack's guardrail uses the Classic tier, and AWS documents its content filters, prompt-attack detection and denied topics, like its profanity word filter, for English, French and Spanish only, and its PII (sensitive-information) filters for 17 languages (Arabic, Chinese, Dutch, English, Finnish, French, German, Hindi, Italian, Japanese, Korean, Norwegian, Polish, Portuguese, Spanish, Swedish and Vietnamese); AWS states that guardrails are ineffective in a language they do not support, so in another of those 17 languages only the PII filters can be effective, and in any other language, Turkish or Thai for example, none of the guardrail is; on the personal-assistant webhook's image and PDF description calls it evaluates only the text, the instruction and the description, not the image or the PDF (a description it blocks or masks is dropped, and the agent gets [User sent an image] or the document's file name, with any caption; a PDF summary comes back in citationsContent blocks, which AWS does not list among the fields a guardrail evaluates, text and guardContent, so whether it is guarded is untested and it is treated as unguarded), the generate-image prompt invokes its model without it, the image and document blocks attachments.build_prompt adds to the agent call are not evaluated (no content filter enables the image modality, and a guardrail has no document modality), a custom agent must pass the guardrail itself, and the prompt-attack filter does not evaluate tool results (A020).",
+      "displayOrder": 8,
+      "metadata": []
+    },
+    {
+      "id": "517c65e2-3fc3-408f-ac94-383d83c1f794",
+      "numericId": 9,
+      "status": "mitigationResolved",
+      "content": "Implement SNS signature verification with certificate URL validation on all inbound webhook messages. The webhook verifies each SNS envelope's PKCS1v15+SHA1 signature and fails closed on a missing field, a rejected URL, a fetch or decode error, or a mismatch. The SigningCertURL is parsed rather than string-matched: https only, no user info, port 443, a host that fully matches sns.<region>.amazonaws.com(.cn) and a .pem path. The certificate is fetched from a URL rebuilt from those parts, with a 5-second timeout and no redirects, and its public key is cached per URL (a failed fetch is not cached). TopicArn is not pinned (A008).",
+      "displayOrder": 9,
+      "metadata": []
+    },
+    {
+      "id": "911d1da3-1926-43eb-93d8-c530f3e9593c",
+      "numericId": 10,
+      "status": "mitigationResolved",
+      "content": "Phone number ID filtering with fail-closed behavior on webhook Lambda",
+      "displayOrder": 10,
+      "metadata": []
+    },
+    {
+      "id": "77bc282a-6cc1-49fb-846e-3e12c804f727",
+      "numericId": 11,
+      "status": "mitigationResolved",
+      "content": "Event API custom Lambda authorizer with constant-time secret comparison and rate limiting",
+      "displayOrder": 11,
+      "metadata": []
+    },
+    {
+      "id": "11bf6cea-db2f-4036-b0ea-8bf805d93a6e",
+      "numericId": 12,
+      "status": "mitigationResolved",
+      "content": "Encryption at rest with AWS-managed and service-owned keys; customer-managed CMK deferred to prod. DynamoDB tables (state, Terraform locks), Secrets Manager and the events SNS topic use AWS-managed KMS keys. Every S3 bucket uses SSE-S3 (Amazon S3 managed keys), SQS queues use SSE-SQS, and the stack's CloudWatch log groups use CloudWatch Logs' default encryption. The admin console's settings table and backend log group use the console's own CMK. The inbound WhatsApp SNS topic (C002) and the alarm topic (C039) are unencrypted at rest by default: the service that publishes to each, EUM Social or CloudWatch, cannot use the AWS-managed SNS key, whose key policy cannot be changed to allow it. SNS still stores their messages with disk encryption, and the sns_kms_key_arn Terraform variable encrypts both topics with one CMK, whose key policy must grant both publishing services; its validation rejects any alias, alias/aws/sns included, but cannot tell an AWS-managed key's ARN from a customer-managed one or check the key policy. With shared_sns_topic_arn set the inbound topic belongs to another stack, and the key encrypts the alarm topic only. Until a key is set, Security Hub's SNS.1 control reports both topics; docs/configuration.md (Encrypting the SNS topics with a customer-managed key) gives the key policy and the check that an ARN names a customer-managed key.",
+      "displayOrder": 12,
+      "metadata": []
+    },
+    {
+      "id": "425492c4-9658-40b4-bc4d-800ef0a66155",
+      "numericId": 13,
+      "status": "mitigationResolved",
+      "content": "Least-privilege IAM roles with resource-scoped policies for each Lambda and AgentCore Runtime. The webhook, notification and event Lambdas, the API Gateway authorizer and the AgentCore Runtime each have their own role; the opt-in scheduler Lambda runs with the event handler's role. The runtime role's S3 access is PutObject/GetObject on the media bucket under voice/ and images/, plus GetObject under media/inbound/ with enable_inbound_attachments (under the stack prefix in shared-bucket mode), and the notification role's is GetObject on voice/, images/ and media/, so neither can read or write audit trails or another stack's objects. The runtime role grants no social-messaging: action: the agent sends and uploads media only through the notification Lambda, and M28 states which of its paths pin the recipient. The notification role's only state table access is dynamodb:PutItem on _schedule# partition keys (a dynamodb:LeadingKeys condition), for the firing record of a scheduled send, so it reads and writes no user's state. Residual: the webhook role keeps PutObject/GetObject/DeleteObject on every stack bucket in per-stack mode, and on the whole stack prefix in shared-bucket mode, audit trails included; versioning and CloudTrail log-file validation expose tampering but do not prevent it.",
+      "displayOrder": 13,
+      "metadata": []
+    },
+    {
+      "id": "a5ea9532-8162-4424-9405-66603ce468a8",
+      "numericId": 14,
+      "status": "mitigationResolved",
+      "content": "S3 bucket hardening: block public access, deny insecure transport, access logging, lifecycle policies. Lifecycle of the per-stack media bucket (C013; the default, with shared_runtime_bucket unset), which is versioned: current objects expire 90 days after they are written, and the data of a deleted or expired object, kept as a noncurrent version, is removed 30 days after it becomes noncurrent; under media/inbound/, where the webhook stages inbound images and documents for the agent when enable_inbound_attachments is on, both happen after 1 day, S3 honouring the shorter of two overlapping expirations; delete markers with no version left are removed, and multipart uploads left incomplete are aborted after 7 days. The SDK deletes, once it has read them, EUM Social's copy of each inbound voice note, image or document (media/<media_id>.<ext>, read by download_media) and transcription uploads (socialagent-transcribe/), so those are kept about 30 days; nothing deletes a staged attachment, kept about 2 days, or the agent's voice/ and images/ files and a copy whose delete failed, kept about 120 days. So staging an attachment leaves its transit copy under media/ for about 30 days, long after the staged copy is gone; staging straight under ATTACHMENTS_PREFIX (media/inbound/), with no transit copy, remains to be done. In shared-bucket mode the shared runtime bucket's stacks/ rule (bootstrap) applies the same 90 and 30 days, staged attachments included: it has no media/inbound/ rule unless the deployer adds one. S3 runs lifecycle actions asynchronously, so removal can trail these dates. S3 applies the lifecycle to the objects already in the bucket, so on a per-stack bucket deployed before it had the noncurrent rule, the first deploy with the rule makes S3 permanently remove every version already noncurrent for more than 30 days, the backlog of media deleted or expired since versioning was turned on; the plan shows only an in-place update, and a deployer who needs that media copies it out first (docs/media.md). The per-stack audit-trails bucket (C014) has no lifecycle rule: its logs, and the version left when one is deleted or overwritten, are kept until the deployer removes them; in shared-bucket mode they sit under stacks/ and follow its rule. Server access logging is configured on the per-stack media bucket, delivering to the audit-trails bucket under s3-access-logs/conversation-logs/, whose policy grants logging.s3.amazonaws.com s3:PutObject on that prefix, held to the media bucket and the account: S3 needs that grant to deliver to a bucket with ACLs disabled. Those logs are kept with the rest of the audit-trails bucket. The audit-trails bucket, the log destination, does not log its own access: it has no other bucket to log to, and AWS advises against a bucket logging to itself, as S3 logs each delivery as one more access and the bucket would write logs about its own log deliveries forever. So nothing logs object-level access to it; the stack's CloudTrail trail records Bedrock data events only. The admin console's own registry bucket (created only when the console's shared_runtime_bucket is empty) does log to itself, under s3-access-logs/, as the console has no log bucket; those logs include S3's logs of its own log deliveries, so a lifecycle rule expires them after 90 days and their noncurrent versions a day later, and leaves the stack registrations at the bucket root alone. Delivery has not been checked on a deployed stack. In shared-bucket mode none is configured (A015).",
+      "displayOrder": 14,
+      "metadata": []
+    },
+    {
+      "id": "0717cce9-dbc6-424d-a349-c9ce7b326043",
+      "numericId": 15,
+      "status": "mitigationResolved",
+      "content": "Dead Letter Queues for all Lambda functions with 14-day retention for failed message inspection. Lambda does not retry the webhook's SNS invocations or the scheduler Lambda's EventBridge Scheduler invocations (maximum_retry_attempts = 0), because a retry runs the handler again, the agent turn and its sends included, so a failed or timed-out event goes straight to the function's DLQ. The webhook and personal-assistant's scheduled task call AgentCore Runtime with botocore retries off, a 5 s connect timeout and a read timeout of at most 100 s that ends 15 s before the Lambda's 120 s timeout, and start no turn with under 10 s left to wait, so a slow turn ends in an error message (the webhook's timeout text, the task's fallback) rather than a Lambda timeout. Only a throttled call or one that never connected, neither of which ran a turn, is tried again, up to three tries in all. EventBridge Scheduler delivers at least once and Lambda's async queue can hand one event over twice, so with the state table on, the scheduler Lambda writes a record of each firing (the schedule id and the time it was due, in one conditional put, kept 48 hours) before it runs a built-in send or an @app.on_schedule handler, runs nothing for a firing already recorded, and keeps the record when the run fails, so each firing runs at most once; a DynamoDB error writing it runs the firing anyway. On a stack without the scheduler Lambda, a schedule's built-in send (send_text, send_template, send_message) goes to the notification Lambda, which writes the same record before it sends, for a payload with a top-level schedule_id only, so notify's sends never touch the state table. Lambda still retries the notification Lambda's async invocations, which notify's sends rely on; for a scheduled send the kept record turns each retry into a duplicate, so the send tries a transient failure again in the handler, and one that still fails reaches no DLQ. Its trace is an ERROR log line naming the schedule, with its phone number cut to the last four digits, and the time it was due; one such error does not set off the error alarm (M16), which needs more than 5 errors in each of two 5-minute periods. Without the state table, or for a schedule created before its Input carried the due time, a firing delivered twice runs twice, and the Lambda that runs it logs one WARNING per cold start for each case.",
+      "displayOrder": 15,
+      "metadata": []
+    },
+    {
+      "id": "376bfce8-4e10-4153-97e5-61d510b8a0a8",
+      "numericId": 16,
+      "status": "mitigationResolved",
+      "content": "CloudWatch alarms on Lambda error rates, P95 duration, throttling, and guardrail interventions. The webhook, notification and event Lambdas, and the opt-in scheduler Lambda, each have an error alarm and the webhook a P95 duration alarm, on the metrics Lambda publishes; the event API's authorizer has none. The agent error-rate and throttling alarms count the Errors and Throttles metrics AgentCore Runtime publishes for the stack's runtime, by the dimension set it publishes them with (Resource, Operation, Name), so they need no log group; Errors is system plus user errors, and an exception in the agent's code counts as a user error. A Bedrock throttle inside the agent is not a runtime throttle and counts only when it fails the turn, as an error. The guardrail intervention alarm, created with the stack's guardrail (guardrail: stack, the default), counts InvocationsIntervened for that guardrail at the version the stack publishes, the one the runtime and the webhook use, with the GuardrailArn and GuardrailVersion dimensions, the only per-guardrail set Bedrock publishes; there is no alarm with guardrail: none, and a guardrail of the project's own is the project's to alarm on. Every alarm action publishes to the alarm topic (C039), which is unencrypted at rest by default because CloudWatch cannot use the AWS-managed SNS key (alias/aws/sns): under that key every alarm action failed and the alarm_email subscription received nothing. A notification reaches a person only once alarm_email is set and its subscription is confirmed from the email SNS sends.",
+      "displayOrder": 16,
+      "metadata": []
+    },
+    {
+      "id": "395c1fa8-c5f5-4a79-aee1-95ecbc8e197e",
+      "numericId": 17,
+      "status": "mitigationResolved",
+      "content": "CloudTrail data events for Bedrock model invocations with log file validation. Bedrock records each Converse and ConverseStream call, and a stream's completion event, as a management event and also as a data event on AWS::Bedrock::Model, which the trail selects; a dev stack's trail holds both kinds of call. Not covered: other Regions. The trail and the invocation logging (M32) cover the stack's Region only, and the generate-image recipe calls us-west-2 by default (IMAGE_MODEL_REGION).",
+      "displayOrder": 17,
+      "metadata": []
+    },
+    {
+      "id": "574887ce-90bb-4702-940a-d4143ca72192",
+      "numericId": 18,
+      "status": "mitigationResolved",
+      "content": "X-Ray active tracing on all Lambda functions for distributed request tracing",
+      "displayOrder": 18,
+      "metadata": []
+    },
+    {
+      "id": "460cd060-f59f-4386-bdf5-35499a43afb3",
+      "numericId": 19,
+      "status": "mitigationResolved",
+      "content": "Cognito authentication with sign-up disabled, 12-char min password, required TOTP MFA for Admin Console",
+      "displayOrder": 19,
+      "metadata": []
+    },
+    {
+      "id": "ca188cba-739c-43a6-a2c5-c392d328a9c7",
+      "numericId": 20,
+      "status": "mitigationResolved",
+      "content": "AgentCore Runtime container isolation limiting blast radius of malicious agent code",
+      "displayOrder": 20,
+      "metadata": []
+    },
+    {
+      "id": "5d1c4eef-0682-447b-9461-b024ae702e6b",
+      "numericId": 21,
+      "status": "mitigationResolved",
+      "content": "ECR image scanning on push and lifecycle policy retaining only last 5 images. When the stack creates its ECR repository, the repository scans each image on push and a lifecycle rule expires all but the five most recent images; a repository the deployer brings keeps its own settings.",
+      "displayOrder": 21,
+      "metadata": []
+    },
+    {
+      "id": "7d4a549d-bee8-45bc-97f5-a3f01180a0b8",
+      "numericId": 22,
+      "status": "mitigationResolved",
+      "content": "Template parameter sanitization for outbound WhatsApp messages. Every template parameter is coerced to a string with line breaks replaced by spaces (sanitize_template_param) before the send, so an event or agent value cannot carry the newlines for which Meta silently drops a template message.",
+      "displayOrder": 22,
+      "metadata": []
+    },
+    {
+      "id": "a1e412b5-6cb7-41ec-971c-b111ea255fd8",
+      "numericId": 23,
+      "status": "mitigationResolved",
+      "content": "Session binding prevents cross-user data access via phone number manipulation. The webhook derives the AgentCore session and actor ids from the sender's phone in the signature-verified SNS envelope (whatsapp-session-conversation-<digits>), never from message content, so a user cannot address another user's session or memory (A009).",
+      "displayOrder": 23,
+      "metadata": []
+    },
+    {
+      "id": "44cfcb1f-e155-49ea-8a05-18e1121b76cf",
+      "numericId": 24,
+      "status": "mitigationResolved",
+      "content": "Object-level authorization on scheduler schedule/list/cancel \u2014 scoped to the calling user. socialagent_runtime.scheduler reads a schedule's owner from one field of its name, after the configured prefix: the leading digits ({digits}-\u2026, as every auto-generated id starts) or the trailing digits after a letters-only label ({label}-{digits}). A name outside the prefix, or with the digits anywhere else, belongs to nobody. list_schedules(phone) returns only the caller's schedules, and nothing for an empty phone; cancel(schedule_id, phone) raises without a phone and refuses a name the phone does not own; schedule() needs a phone outside dev mode, refuses an explicit schedule_id the phone does not own, and accepts only operation names matching ^[a-z][a-z_]{0,31}$, so an operation cannot plant another user's digits in a name. Every shipped scheduling tool passes tool_context.invocation_state[\"phone\"] and returns an error without one, which tests pin. Not covered: the handler-side EventContext.schedule, which only project code calls, outside the agent turn, and a project whose vendored socialagent_runtime/ predates these checks, until socialagent runtime update replaces it (socialagent deploy and dev warn when the copy differs from the CLI's, and never block).",
+      "displayOrder": 24,
+      "metadata": []
+    },
+    {
+      "id": "8f3d1c07-4b62-4ae9-9d51-2c7e08b34f16",
+      "numericId": 25,
+      "status": "mitigationResolved",
+      "content": "Deployment metrics carry no end-user data and use no separate telemetry channel. The CloudFormation stack created by infra-terraform/metrics.tf contains exactly one AWS::SSM::Parameter whose value is the opaque vended code uksb-pool7fymvx; the same code is repeated in the stack description, which is the only field AWS ingests. No message content, conversation data, usage data, phone number or account identifier is included. The description reaches AWS only through the deployer's own CloudFormation CreateStack/UpdateStack calls that provision the marker stack in their own account, and AWS reads it from its own CloudFormation control plane; there is no separate telemetry endpoint, no third-party call and no runtime call. The same code is also the TrackingId default tag on every taggable resource the deployment creates, so it accompanies those resources' create and tag requests too; the tags are not an ingestion path, and the opt-out does not remove them.",
+      "displayOrder": 25,
+      "metadata": []
+    },
+    {
+      "id": "2d90e4b8-71cf-4a63-8e15-9b06c3d75a24",
+      "numericId": 26,
+      "status": "mitigationResolved",
+      "content": "Documented single-flag opt-out with no dependants. enable_deployment_metrics = false removes the stack, its description and its parameter entirely and plans as one clean destroy; no other resource references either, so nothing else changes. It does not remove the TrackingId default tag on every taggable resource the deployment creates, and because this repository publishes the code, those tags still identify the solution to anyone who can read them. The disclosure is where a deployer will actually read it: a callout at the top of the root README.md with the opt-out and a table of what is emitted, the Quick Start, the Operational Metrics Collection section of infra-terraform/README.md (contents, what is and is not collected, and the extra IAM permissions required), the header comment of metrics.tf, and a line that socialagent deploy prints while the marker is on. The resource chosen is an SSM Standard parameter rather than a CloudFormation WaitConditionHandle specifically so the deployer can read the value back and verify the disclosure instead of taking it on trust.",
+      "displayOrder": 26,
+      "metadata": []
+    },
+    {
+      "id": "b47e2f19-5d08-4c71-a93b-6e15d820c4f3",
+      "numericId": 27,
+      "status": "mitigationResolved",
+      "content": "Least-privilege IAM for the marker, and a plan-time guard on its name. infra-terraform/minimal-deploy-policy.json grants what the marker needs in two statements restricted by resource name rather than Resource *: DeploymentMetricsStack (create, update, delete and describe the stack, and read its events and template) on stacks named *-deployment-metrics, and DeploymentMetricsParameter (put, get, delete and tag the parameter; tagging is required because CloudFormation propagates stack tags to it) on parameters named */deployment-metrics/tracking-code. A lifecycle precondition on the composed parameter name fails the plan before anything is created if the name could ever begin with the SSM-reserved aws or ssm prefix, which guards the invariant rather than restricting the adopter's project name. It is linked to neither T17 nor T18 on purpose: it bounds what the deployer may do, not who can read or alter the marker.",
+      "displayOrder": 27,
+      "metadata": []
+    },
+    {
+      "id": "20c869ca-6fe1-48e3-9665-16fac5206ebe",
+      "numericId": 28,
+      "status": "mitigationResolved",
+      "content": "Outbound recipient and envelope pinning. The webhook sends every message queued inside socialagent_notify_context() to the conversation's sender, and logs and drops a different agent-supplied phone. EUMSocialProvider.send_message, the only place a payload is spread into a WhatsApp send, drops messaging_product, to, type and recipient_type from the payload with a warning, so on the drain, notification and scheduler paths the recipient is always the caller's argument. Not covered: on the notification Lambda and immediate=True paths that argument is whatever the calling code passed, so a tool must take it from tool_context.invocation_state, not from model input.",
+      "displayOrder": 28,
+      "metadata": []
+    },
+    {
+      "id": "36e1a74a-89d2-4334-90ad-1f64cec1cfc3",
+      "numericId": 29,
+      "status": "mitigationResolved",
+      "content": "Agent-supplied S3 media uploads limited to the stack's media roots. upload_media_from_s3 accepts only the stack's media bucket and keys under voice/, images/ or media/ (beneath MEDIA_PREFIX in shared-bucket mode) with no .., and fails closed when no bucket is configured, both for notify.upload_media and for S3 links in queued messages. The notification role's IAM grants the same three roots. On the webhook-drain path the code check is the only control, because the webhook role can read the whole stack prefix (M13).",
+      "displayOrder": 29,
+      "metadata": []
+    },
+    {
+      "id": "3147ada6-62d8-4c59-8715-0a64f6486c6d",
+      "numericId": 30,
+      "status": "mitigationResolved",
+      "content": "Admin console authorization: one deny-by-default group check per route, against live Cognito membership. The backend's only authorization layer is require_group, applied directly under the route decorator on all 36 routes; a unit test fails on a route that lacks it, has it in the wrong order, or changes level, and every DELETE route needs admin. Groups come from a live AdminGetUser and AdminListGroupsForUser lookup cached for 60 seconds per container: a deleted or disabled user gets no groups, the signed cognito:groups claim is used only when Cognito throttles, returns a 5xx or cannot be reached, and any other error denies without caching. Deleting a user signs them out globally first. Residual: a deleted or disabled user keeps access for up to the cache TTL on a container that already cached them, and for the token's life with AUTH_LIVE_GROUP_CHECK=false. The groups are global across stacks (A022). The console UI also disables admin-only actions from the cognito:groups claim in the ID token; that is presentation only, not a control.",
+      "displayOrder": 30,
+      "metadata": []
+    },
+    {
+      "id": "52ea6821-7959-4c76-9794-792b5a2cdbef",
+      "numericId": 31,
+      "status": "mitigationResolved",
+      "content": "Admin console derives sensitive targets server-side and keeps backend exceptions out of responses. update-sns-destination needs admin, takes the WABA from the stack's bound phone and defaults the topic to the stack's own; a named topic must be an SNS topic ARN in the stack's region published by this stack or by a registered stack on the same WABA, and a shared WABA needs force: true. phone-numbers/bind (operator) takes the WABA from the phone's EUM Social record and, when no other registered stack shares that WABA, points it at the target stack's own topic; replacing a destination that is no registered stack's topic needs admin, since it takes the WABA's events from whatever reads that destination. Both fail closed. While a registered stack that may be on the WABA cannot be checked, because its registry entry or its phone's EUM Social record could not be read, they refuse the change, force or not. So a failed lookup never makes a shared WABA look unshared. They read every page of the registry listing, so a stack past the first 1000 is checked too. A shared bind also refuses when it cannot record a sibling's Meta phone number id in the sibling's registry entry. trigger-event attaches the stack's event API key and webhook secret only when the registry's event_api_url host is an execute-api endpoint in the stack's region whose API the registry's event_api_key_id is bound to by a usage plan (GetUsagePlans), checked before either is read, so the credentials never reach another account's API or an API that key is not bound to; an entry without a key id is refused before any read, and the request follows no redirects. Error responses name what failed and give the API Gateway request id; the exception is logged server-side. The exception is send-message, which returns the notification Lambda's error type and message with ARNs and 12-digit account ids masked, so the operator sees the reason (for example a template Meta rejected). GET /api/phone-numbers (operator) lists every number on every WABA linked in the console's region (GetLinkedWhatsAppBusinessAccount, granted on this account's waba/* resources only), not only the numbers registered stacks hold. send-message has the notification Lambda write the operator's reply to the conversation's AgentCore Memory (memory_text for text, log_to_memory for templates), so console replies become part of the agent's context.",
+      "displayOrder": 31,
+      "metadata": []
+    },
+    {
+      "id": "b2044dff-cccf-4806-a246-ad8432e9091e",
+      "numericId": 32,
+      "status": "mitigationResolved",
+      "content": "Bedrock model invocation logging carries metadata only. The invocation logging configuration sets text, image, embedding and video data delivery to false, so the logs in the audit-trails bucket hold request metadata (model, caller identity, token counts) and no prompt, completion or image (AS019). The provider exposes no audio flag; the stack invokes no Bedrock audio model. The configuration is one per account and region, so applying the stack sets it for every Bedrock caller in the account, and payloads logged before this setting stay in the bucket until removed.",
+      "displayOrder": 32,
+      "metadata": []
+    },
+    {
+      "id": "0bc4a591-c16e-4047-b71f-236f39c59119",
+      "numericId": 33,
+      "status": "mitigationResolved",
+      "content": "Agent-source archives exclude credentials, state and caches at any depth. The archives Terraform uploads for the agent image or zip build drop, at any depth, .env and .env.* (except *.example), *.pem, *.key, *.log, *.tfstate, *.tfstate.backup, *.tfvars, virtualenvs named .venv or venv, node_modules, .terraform, tool caches and bytecode, and the CLI's .socialagent/ directory, so these never reach S3, the image or the zip package. Credential files with other names still ship; secrets belong in Secrets Manager (socialagent secrets set).",
+      "displayOrder": 33,
+      "metadata": []
+    },
+    {
+      "id": "1f0a7f95-78f0-48a3-adc8-9037e0f8506b",
+      "numericId": 34,
+      "status": "mitigationResolved",
+      "content": "CI supply chain: actions pinned to commit SHAs, dependency updates on a cooldown. Every GitHub Actions step names a full 40-character release commit SHA, with the tag in a trailing comment that Dependabot moves with it. Every Dependabot entry waits 7 days before proposing a release, and the uv, pip and npm entries wait 30 days for a major version; security updates are not delayed. CodeQL runs on pull requests, pushes to main and weekly only after a repository administrator sets CODE_SCANNING_ENABLED=true once public code scanning or GitHub Advanced Security is ready; otherwise it is disabled. An ASH scan, gitleaks and workflow-lint (actionlint with shellcheck and zizmor) run on every pull request, and every checkout sets persist-credentials: false. Not covered: when a deploy rebuilds the Lambda layer (pip install .) or the agent image (requirements.txt), CodeBuild installs from PyPI the newest versions their ranges allow (the exact aws-opentelemetry-distro pin aside), with no lock file, hashes or cooldown, and the blueprint Dockerfiles build on the floating python:3.12-slim tag. The blueprint requirements are bounded on purpose: each range caps its major version, and a scaffolded project keeps its requirements.txt after socialagent init, so a committed exact pin would hold every project on the versions of its release day, while a range takes fixed releases whenever the image is rebuilt, which a deploy does when the project's source changes. The exception is aws-opentelemetry-distro, pinned at ==0.20.0: a project stays on that version until its own requirements.txt changes, and a later blueprint change reaches only projects scaffolded after it. That pin requires opentelemetry-api==1.44.0, as does 0.21.0, so an agent image carries the version GHSA-xcq7-p3pf-p88h affects (TraceState.from_header parses a tracestate header in quadratic time) until a distro release moves it; the runtime reads that header only from InvokeAgentRuntime, which caps traceState at 512 characters, and SMART's callers set none. Dependency scanning of the repository sees those ranges, not the versions an image resolves, and the agent repository's scan on push is ECR basic scanning, which covers OS packages only: a production deployer turns on ECR enhanced scanning (Amazon Inspector) to scan the image's Python packages, or builds from a constraints file it keeps current. The pull-request ASH scan runs in precommit mode (bandit, checkov, cdk-nag, detect-secrets and npm audit), with no Python dependency scanner, so a vulnerable version pinned in uv.lock fails no pull-request check.",
+      "displayOrder": 34,
+      "metadata": []
+    },
+    {
+      "id": "30c59b52-8112-4384-903e-fe5e05660674",
+      "numericId": 35,
+      "status": "mitigationResolved",
+      "content": "Admin console keeps conversation text out of markup and API paths. The conversation viewer HTML-escapes message text, template names and template bodies before it applies WhatsApp formatting, and only that output reaches the console's one dangerouslySetInnerHTML sink; the console's CSP allows script-src 'self' only. Every dynamic segment of an admin API path goes through encodeURIComponent, and an empty segment, . and .., which encoding leaves for the URL parser to resolve, are refused before any request is sent. A [Template: <name>] line is looked up, and badged as a template, only when the name is a Meta template name (^[a-z0-9_]{1,512}$); any other such line is shown as ordinary message text. The template-detail route refuses any other name with a 400 before it reads the registry. The viewer keeps template details in a Map, so a name such as constructor reads as absent rather than as an Object.prototype member, and only for the open conversation: they are fetched each time a conversation opens and dropped when it closes, so a body is never another stack's template of the same name or one fetched before the template changed or the operator signed out. The reply composer starts empty for each conversation too, and lists the templates of that conversation's stack, so a draft, a template picked in one conversation or its preview never carries over to another. One open of a conversation fetches the bodies of at most 10 distinct template names (MAX_TEMPLATE_LOOKUPS), the newest first; a line past that shows a placeholder instead of a body, and a line whose lookup failed or found no template says its body could not be loaded. Residual: each lookup is a template-detail request, which costs the admin API up to four EUM Social calls whether or not the name is a template, so an end user who fills a conversation with template lines can make each open of it spend up to 40 calls of the account's EUM Social request quotas in the stack's Region, which AWS sets per operation.",
+      "displayOrder": 35,
+      "metadata": []
+    }
+  ],
+  "assumptionLinks": [
+    {
+      "type": "Threat",
+      "linkedId": "6c07b9a4-2e51-4d38-b6ad-5f9c2e41d708",
+      "assumptionId": "A018"
+    },
+    {
+      "type": "Threat",
+      "linkedId": "e19ed878-12fa-4cfe-9e6f-491942d1f9b4",
+      "assumptionId": "A019"
+    },
+    {
+      "type": "Threat",
+      "linkedId": "051b7329-1a23-482e-ba8b-0807a2593c86",
+      "assumptionId": "A019"
+    },
+    {
+      "type": "Threat",
+      "linkedId": "28f4099b-4d22-4458-8408-8e358d5e571c",
+      "assumptionId": "A020"
+    },
+    {
+      "type": "Threat",
+      "linkedId": "b0dcbc23-cbd9-4173-99ec-a90986b361bb",
+      "assumptionId": "A021"
+    },
+    {
+      "type": "Threat",
+      "linkedId": "9a2ece12-0b98-4ab8-a520-eab209809040",
+      "assumptionId": "A022"
+    }
+  ],
+  "mitigationLinks": [
+    {
+      "linkedId": "b0dcbc23-cbd9-4173-99ec-a90986b361bb",
+      "mitigationId": "938e642f-eae7-4776-a31b-9324a20cdc1e"
+    },
+    {
+      "linkedId": "28f4099b-4d22-4458-8408-8e358d5e571c",
+      "mitigationId": "2216922d-534a-4eb9-a233-005385923e7c"
+    },
+    {
+      "linkedId": "28f4099b-4d22-4458-8408-8e358d5e571c",
+      "mitigationId": "ca188cba-739c-43a6-a2c5-c392d328a9c7"
+    },
+    {
+      "linkedId": "b0dcbc23-cbd9-4173-99ec-a90986b361bb",
+      "mitigationId": "376bfce8-4e10-4153-97e5-61d510b8a0a8"
+    },
+    {
+      "linkedId": "e19ed878-12fa-4cfe-9e6f-491942d1f9b4",
+      "mitigationId": "e0b573c7-705e-4eb4-876c-2597fd5483f3"
+    },
+    {
+      "linkedId": "051b7329-1a23-482e-ba8b-0807a2593c86",
+      "mitigationId": "e0b573c7-705e-4eb4-876c-2597fd5483f3"
+    },
+    {
+      "linkedId": "7b4ae044-4dca-469b-a6e8-113c5530f896",
+      "mitigationId": "77bc282a-6cc1-49fb-846e-3e12c804f727"
+    },
+    {
+      "linkedId": "7b4ae044-4dca-469b-a6e8-113c5530f896",
+      "mitigationId": "11bf6cea-db2f-4036-b0ea-8bf805d93a6e"
+    },
+    {
+      "linkedId": "fc869cb0-e8f3-482e-9bda-6d7e2d8f9070",
+      "mitigationId": "517c65e2-3fc3-408f-ac94-383d83c1f794"
+    },
+    {
+      "linkedId": "fc869cb0-e8f3-482e-9bda-6d7e2d8f9070",
+      "mitigationId": "911d1da3-1926-43eb-93d8-c530f3e9593c"
+    },
+    {
+      "linkedId": "e19ed878-12fa-4cfe-9e6f-491942d1f9b4",
+      "mitigationId": "425492c4-9658-40b4-bc4d-800ef0a66155"
+    },
+    {
+      "linkedId": "e19ed878-12fa-4cfe-9e6f-491942d1f9b4",
+      "mitigationId": "ca188cba-739c-43a6-a2c5-c392d328a9c7"
+    },
+    {
+      "linkedId": "f49ef920-ed5e-42f5-8ae7-9f73dd59f612",
+      "mitigationId": "ac57af78-9b6f-492b-a13a-a701a369f18d"
+    },
+    {
+      "linkedId": "9a2ece12-0b98-4ab8-a520-eab209809040",
+      "mitigationId": "d81665aa-04d0-42a2-b53d-ec93e985c706"
+    },
+    {
+      "linkedId": "051b7329-1a23-482e-ba8b-0807a2593c86",
+      "mitigationId": "425492c4-9658-40b4-bc4d-800ef0a66155"
+    },
+    {
+      "linkedId": "051b7329-1a23-482e-ba8b-0807a2593c86",
+      "mitigationId": "ca188cba-739c-43a6-a2c5-c392d328a9c7"
+    },
+    {
+      "linkedId": "cd4b9f1a-60b7-40f4-a31f-43b39a015c1a",
+      "mitigationId": "77bc282a-6cc1-49fb-846e-3e12c804f727"
+    },
+    {
+      "linkedId": "cd4b9f1a-60b7-40f4-a31f-43b39a015c1a",
+      "mitigationId": "376bfce8-4e10-4153-97e5-61d510b8a0a8"
+    },
+    {
+      "linkedId": "9a2ece12-0b98-4ab8-a520-eab209809040",
+      "mitigationId": "460cd060-f59f-4386-bdf5-35499a43afb3"
+    },
+    {
+      "linkedId": "632bf13b-87e8-4eed-881e-b9d8e3ac8dbf",
+      "mitigationId": "d8e63099-e426-4d83-93bc-59fe16249eff"
+    },
+    {
+      "linkedId": "46be22fa-5752-497d-aa05-c1bf13b23b38",
+      "mitigationId": "0717cce9-dbc6-424d-a349-c9ce7b326043"
+    },
+    {
+      "linkedId": "46be22fa-5752-497d-aa05-c1bf13b23b38",
+      "mitigationId": "376bfce8-4e10-4153-97e5-61d510b8a0a8"
+    },
+    {
+      "linkedId": "367fc0d7-e4e3-4ebb-a27e-a7284c45aafb",
+      "mitigationId": "11bf6cea-db2f-4036-b0ea-8bf805d93a6e"
+    },
+    {
+      "linkedId": "367fc0d7-e4e3-4ebb-a27e-a7284c45aafb",
+      "mitigationId": "395c1fa8-c5f5-4a79-aee1-95ecbc8e197e"
+    },
+    {
+      "linkedId": "367fc0d7-e4e3-4ebb-a27e-a7284c45aafb",
+      "mitigationId": "425492c4-9658-40b4-bc4d-800ef0a66155"
+    },
+    {
+      "linkedId": "632bf13b-87e8-4eed-881e-b9d8e3ac8dbf",
+      "mitigationId": "2216922d-534a-4eb9-a233-005385923e7c"
+    },
+    {
+      "linkedId": "33ba94ec-43a2-4772-8c1e-b02d775a5da1",
+      "mitigationId": "a1e412b5-6cb7-41ec-971c-b111ea255fd8"
+    },
+    {
+      "linkedId": "33ba94ec-43a2-4772-8c1e-b02d775a5da1",
+      "mitigationId": "425492c4-9658-40b4-bc4d-800ef0a66155"
+    },
+    {
+      "linkedId": "1ae0d188-d7eb-4b68-a8b3-f24337165345",
+      "mitigationId": "a5ea9532-8162-4424-9405-66603ce468a8"
+    },
+    {
+      "linkedId": "1ae0d188-d7eb-4b68-a8b3-f24337165345",
+      "mitigationId": "11bf6cea-db2f-4036-b0ea-8bf805d93a6e"
+    },
+    {
+      "linkedId": "e19ed878-12fa-4cfe-9e6f-491942d1f9b4",
+      "mitigationId": "c62f0a5d-79f1-4fc7-b7dc-38b1e0807415"
+    },
+    {
+      "linkedId": "f49ef920-ed5e-42f5-8ae7-9f73dd59f612",
+      "mitigationId": "11bf6cea-db2f-4036-b0ea-8bf805d93a6e"
+    },
+    {
+      "linkedId": "45541f04-1531-4634-8cb3-d0950ad85a89",
+      "mitigationId": "981a6093-71f9-421a-8e69-17a04e44f078"
+    },
+    {
+      "linkedId": "45541f04-1531-4634-8cb3-d0950ad85a89",
+      "mitigationId": "ca188cba-739c-43a6-a2c5-c392d328a9c7"
+    },
+    {
+      "linkedId": "a19d7f8f-47f7-4688-ad63-dbc706f5a71b",
+      "mitigationId": "44cfcb1f-e155-49ea-8a05-18e1121b76cf"
+    },
+    {
+      "linkedId": "11a5c3de-6f42-4f0b-9c2e-7d8140b6e311",
+      "mitigationId": "8f3d1c07-4b62-4ae9-9d51-2c7e08b34f16"
+    },
+    {
+      "linkedId": "11a5c3de-6f42-4f0b-9c2e-7d8140b6e311",
+      "mitigationId": "2d90e4b8-71cf-4a63-8e15-9b06c3d75a24"
+    },
+    {
+      "linkedId": "6c07b9a4-2e51-4d38-b6ad-5f9c2e41d708",
+      "mitigationId": "2d90e4b8-71cf-4a63-8e15-9b06c3d75a24"
+    },
+    {
+      "linkedId": "28f4099b-4d22-4458-8408-8e358d5e571c",
+      "mitigationId": "20c869ca-6fe1-48e3-9665-16fac5206ebe"
+    },
+    {
+      "linkedId": "45541f04-1531-4634-8cb3-d0950ad85a89",
+      "mitigationId": "20c869ca-6fe1-48e3-9665-16fac5206ebe"
+    },
+    {
+      "linkedId": "28f4099b-4d22-4458-8408-8e358d5e571c",
+      "mitigationId": "36e1a74a-89d2-4334-90ad-1f64cec1cfc3"
+    },
+    {
+      "linkedId": "9a2ece12-0b98-4ab8-a520-eab209809040",
+      "mitigationId": "3147ada6-62d8-4c59-8715-0a64f6486c6d"
+    },
+    {
+      "linkedId": "7b4ae044-4dca-469b-a6e8-113c5530f896",
+      "mitigationId": "52ea6821-7959-4c76-9794-792b5a2cdbef"
+    },
+    {
+      "linkedId": "9a2ece12-0b98-4ab8-a520-eab209809040",
+      "mitigationId": "52ea6821-7959-4c76-9794-792b5a2cdbef"
+    },
+    {
+      "linkedId": "1ae0d188-d7eb-4b68-a8b3-f24337165345",
+      "mitigationId": "b2044dff-cccf-4806-a246-ad8432e9091e"
+    },
+    {
+      "linkedId": "1b45b866-63f7-488f-af06-66325accc3c1",
+      "mitigationId": "30c59b52-8112-4384-903e-fe5e05660674"
+    }
+  ],
+  "threats": [
+    {
+      "id": "28f4099b-4d22-4458-8408-8e358d5e571c",
+      "numericId": 1,
+      "threatSource": "Malicious WhatsApp User",
+      "prerequisites": "with a WhatsApp account and knowledge of prompt injection techniques",
+      "threatAction": "send crafted messages to manipulate AI agent into revealing system prompts, other users' data, or performing unauthorized actions",
+      "threatImpact": "information disclosure of PII, unauthorized actions, reputation damage",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008",
+        "AS009"
+      ],
+      "statement": "A Malicious WhatsApp User with a WhatsApp account and knowledge of prompt injection techniques can send crafted messages to manipulate AI agent into revealing system prompts, other users' data, or performing unauthorized actions, which leads to information disclosure of PII, unauthorized actions, reputation damage",
+      "displayOrder": 1,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-T",
+        "Prompt-Injection",
+        "AI-Safety"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "b0dcbc23-cbd9-4173-99ec-a90986b361bb",
+      "numericId": 2,
+      "threatSource": "Malicious WhatsApp User",
+      "prerequisites": "with ability to send high-volume messages via WhatsApp",
+      "threatAction": "flood the system with messages to exhaust Lambda concurrency, Bedrock tokens, or trigger cost overruns",
+      "threatImpact": "denial of service for legitimate users, unexpected AWS cost escalation",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008"
+      ],
+      "statement": "A Malicious WhatsApp User with ability to send high-volume messages via WhatsApp can flood the system with messages to exhaust Lambda concurrency, Bedrock tokens, or trigger cost overruns, which leads to denial of service for legitimate users, unexpected AWS cost escalation",
+      "displayOrder": 2,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-D",
+        "Cost-Attack",
+        "Rate-Limiting"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "7b4ae044-4dca-469b-a6e8-113c5530f896",
+      "numericId": 3,
+      "threatSource": "External Attacker",
+      "prerequisites": "who has obtained or brute-forced the event API webhook secret",
+      "threatAction": "send forged events to the Event API to trigger unauthorized messages to WhatsApp users",
+      "threatImpact": "phishing messages sent to users, spam delivery, reputation damage",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS013"
+      ],
+      "statement": "A External Attacker who has obtained or brute-forced the event API webhook secret can send forged events to the Event API to trigger unauthorized messages to WhatsApp users, which leads to phishing messages sent to users, spam delivery, reputation damage",
+      "displayOrder": 3,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-S",
+        "Event-API",
+        "Credential-Compromise"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "fc869cb0-e8f3-482e-9bda-6d7e2d8f9070",
+      "numericId": 4,
+      "threatSource": "External Attacker",
+      "prerequisites": "with network access to intercept SNS notifications",
+      "threatAction": "replay or forge SNS messages with manipulated payloads to bypass signature verification",
+      "threatImpact": "injection of malicious messages into the processing pipeline",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008"
+      ],
+      "statement": "A External Attacker with network access to intercept SNS notifications can replay or forge SNS messages with manipulated payloads to bypass signature verification, which leads to injection of malicious messages into the processing pipeline",
+      "displayOrder": 4,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-S",
+        "SNS-Replay",
+        "Message-Forgery"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "e19ed878-12fa-4cfe-9e6f-491942d1f9b4",
+      "numericId": 5,
+      "threatSource": "Malicious Agent Developer",
+      "prerequisites": "with access to deploy agent code to AgentCore Runtime",
+      "threatAction": "write agent code that exfiltrates conversation data, user PII, or AWS credentials to external endpoints",
+      "threatImpact": "mass data breach of user conversations, credential theft enabling lateral movement",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008",
+        "AS009",
+        "AS011",
+        "AS014"
+      ],
+      "statement": "A Malicious Agent Developer with access to deploy agent code to AgentCore Runtime can write agent code that exfiltrates conversation data, user PII, or AWS credentials to external endpoints, which leads to mass data breach of user conversations, credential theft enabling lateral movement",
+      "displayOrder": 5,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-I",
+        "Insider-Threat",
+        "Data-Exfiltration"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "051b7329-1a23-482e-ba8b-0807a2593c86",
+      "numericId": 6,
+      "threatSource": "Malicious Agent Developer",
+      "prerequisites": "with access to deploy agent code to AgentCore Runtime",
+      "threatAction": "abuse IAM role permissions to access other users state, invoke services, or escalate privileges",
+      "threatImpact": "unauthorized access to other tenants data, privilege escalation within AWS account",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS012",
+        "AS014"
+      ],
+      "statement": "A Malicious Agent Developer with access to deploy agent code to AgentCore Runtime can abuse IAM role permissions to access other users state, invoke services, or escalate privileges, which leads to unauthorized access to other tenants data, privilege escalation within AWS account",
+      "displayOrder": 6,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-E",
+        "Privilege-Escalation",
+        "IAM-Abuse"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "cd4b9f1a-60b7-40f4-a31f-43b39a015c1a",
+      "numericId": 7,
+      "threatSource": "Compromised External System",
+      "prerequisites": "with valid webhook secret after CRM/e-commerce system is breached",
+      "threatAction": "inject malicious event payloads to trigger mass messaging or extract user interaction data",
+      "threatImpact": "spam/phishing delivery to users, data extraction via agent responses",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS013",
+        "AS008"
+      ],
+      "statement": "A Compromised External System with valid webhook secret after CRM/e-commerce system is breached can inject malicious event payloads to trigger mass messaging or extract user interaction data, which leads to spam/phishing delivery to users, data extraction via agent responses",
+      "displayOrder": 7,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-T",
+        "Supply-Chain",
+        "Event-Injection"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "9a2ece12-0b98-4ab8-a520-eab209809040",
+      "numericId": 8,
+      "threatSource": "External Attacker",
+      "prerequisites": "with access to stolen or leaked Cognito credentials",
+      "threatAction": "access Admin Console to view conversations, modify schedules, or change system configuration",
+      "threatImpact": "unauthorized access to all user data, system manipulation, service disruption",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS015",
+        "AS009"
+      ],
+      "statement": "A External Attacker with access to stolen or leaked Cognito credentials can access Admin Console to view conversations, modify schedules, or change system configuration, which leads to unauthorized access to all user data, system manipulation, service disruption",
+      "displayOrder": 8,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-S",
+        "Admin-Takeover",
+        "Credential-Theft"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "46be22fa-5752-497d-aa05-c1bf13b23b38",
+      "numericId": 9,
+      "threatSource": "External Attacker",
+      "prerequisites": "with knowledge of the system architecture and access to public endpoints",
+      "threatAction": "exploit missing rate limits or input validation to cause Lambda timeout cascades and DLQ overflow",
+      "threatImpact": "message processing delays, lost messages, degraded service availability",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008"
+      ],
+      "statement": "A External Attacker with knowledge of the system architecture and access to public endpoints can exploit missing rate limits or input validation to cause Lambda timeout cascades and DLQ overflow, which leads to message processing delays, lost messages, degraded service availability",
+      "displayOrder": 9,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-D",
+        "Resource-Exhaustion",
+        "Lambda-Timeout"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "367fc0d7-e4e3-4ebb-a27e-a7284c45aafb",
+      "numericId": 10,
+      "threatSource": "Insider (AWS Account Admin)",
+      "prerequisites": "with IAM admin access to the AWS account hosting SMART",
+      "threatAction": "access KMS key, decrypt secrets, read S3 data, or modify Lambda code to intercept messages",
+      "threatImpact": "full compromise of all user data, conversation history, and system secrets",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008",
+        "AS009",
+        "AS013",
+        "AS016"
+      ],
+      "statement": "A Insider (AWS Account Admin) with IAM admin access to the AWS account hosting SMART can access KMS key, decrypt secrets, read S3 data, or modify Lambda code to intercept messages, which leads to full compromise of all user data, conversation history, and system secrets",
+      "displayOrder": 10,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-I",
+        "Insider-Admin",
+        "Full-Compromise"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "632bf13b-87e8-4eed-881e-b9d8e3ac8dbf",
+      "numericId": 11,
+      "threatSource": "AI Foundation Model",
+      "prerequisites": "when guardrails are disabled or misconfigured",
+      "threatAction": "generate harmful, biased, PII-leaking, or policy-violating content in responses to users",
+      "threatImpact": "user harm, privacy violations, regulatory non-compliance, brand damage",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS010",
+        "AS009"
+      ],
+      "statement": "A AI Foundation Model when guardrails are disabled or misconfigured can generate harmful, biased, PII-leaking, or policy-violating content in responses to users, which leads to user harm, privacy violations, regulatory non-compliance, brand damage",
+      "displayOrder": 11,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-I",
+        "AI-Safety",
+        "Content-Harm"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "33ba94ec-43a2-4772-8c1e-b02d775a5da1",
+      "numericId": 12,
+      "threatSource": "External Attacker",
+      "prerequisites": "with ability to enumerate or guess phone numbers",
+      "threatAction": "attempt cross-user data access by manipulating session identifiers in requests",
+      "threatImpact": "exposure of another users conversation history or state data",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS009",
+        "AS011",
+        "AS012"
+      ],
+      "statement": "A External Attacker with ability to enumerate or guess phone numbers can attempt cross-user data access by manipulating session identifiers in requests, which leads to exposure of another users conversation history or state data",
+      "displayOrder": 12,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-I",
+        "Session-Hijack",
+        "Cross-User"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "1ae0d188-d7eb-4b68-a8b3-f24337165345",
+      "numericId": 13,
+      "threatSource": "External Attacker",
+      "prerequisites": "who discovers unprotected S3 bucket policy or misconfigured access",
+      "threatAction": "access conversation logs or media files containing user PII and sensitive content",
+      "threatImpact": "mass data breach of user messages, media, and metadata",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008",
+        "AS017"
+      ],
+      "statement": "A External Attacker who discovers unprotected S3 bucket policy or misconfigured access can access conversation logs or media files containing user PII and sensitive content, which leads to mass data breach of user messages, media, and metadata",
+      "displayOrder": 13,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-I",
+        "S3-Exposure",
+        "Data-Breach"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "f49ef920-ed5e-42f5-8ae7-9f73dd59f612",
+      "numericId": 14,
+      "threatSource": "External Attacker",
+      "prerequisites": "with ability to intercept or modify CloudWatch log streams",
+      "threatAction": "access Lambda execution logs containing user messages or phone numbers logged during processing",
+      "threatImpact": "disclosure of PII through operational logs, compliance violation",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS008",
+        "AS011"
+      ],
+      "statement": "A External Attacker with ability to intercept or modify CloudWatch log streams can access Lambda execution logs containing user messages or phone numbers logged during processing, which leads to disclosure of PII through operational logs, compliance violation",
+      "displayOrder": 14,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-I",
+        "Log-Leakage",
+        "PII-in-Logs"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "45541f04-1531-4634-8cb3-d0950ad85a89",
+      "numericId": 15,
+      "threatSource": "Malicious WhatsApp User",
+      "prerequisites": "with knowledge of the AI agents capabilities and tool access",
+      "threatAction": "manipulate agent into creating excessive EventBridge schedules or triggering notification spam",
+      "threatImpact": "resource exhaustion, cost overrun, spam delivery to other users",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS010"
+      ],
+      "statement": "A Malicious WhatsApp User with knowledge of the AI agents capabilities and tool access can manipulate agent into creating excessive EventBridge schedules or triggering notification spam, which leads to resource exhaustion, cost overrun, spam delivery to other users",
+      "displayOrder": 15,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-E",
+        "Tool-Abuse",
+        "Schedule-Spam"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "a19d7f8f-47f7-4688-ad63-dbc706f5a71b",
+      "numericId": 16,
+      "threatSource": "Malicious WhatsApp User",
+      "prerequisites": "with normal bot access (any end user of the deployed agent)",
+      "threatAction": "invoke the list-schedules / cancel-schedule tools, which returned or acted on schedules belonging to other users",
+      "threatImpact": "disclosure of other users' phone numbers and reminder/task text; deletion of other users' schedules",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS011",
+        "AS010"
+      ],
+      "statement": "A Malicious WhatsApp User with normal bot access can ask the agent to list or cancel schedules and, because the scheduler list/cancel tools were not scoped to the caller, read every other user's phone number and reminder/task text and delete any user's schedule by name (broken object-level authorization / BOLA), which leads to cross-user PII disclosure and denial of another user's scheduled reminders",
+      "displayOrder": 16,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-I",
+        "STRIDE-D",
+        "BOLA",
+        "Object-Level-Authz"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "11a5c3de-6f42-4f0b-9c2e-7d8140b6e311",
+      "numericId": 17,
+      "threatSource": "Insider",
+      "prerequisites": "with read access to the deploying AWS account (cloudformation:DescribeStacks or ssm:GetParameter)",
+      "threatAction": "read the deployment-metrics stack description or its SSM parameter",
+      "threatImpact": "confirmation that this solution is deployed and which solution it is: the stack description names it and its version in plain text, and the parameter's value is the tracking code this repository publishes",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS020"
+      ],
+      "statement": "An Insider with read access to the deploying AWS account can read the deployment-metrics stack description or its SSM parameter and learn that this solution is deployed and which solution it is, which leads to disclosure of the deployment's existence and identity to a principal who can already enumerate every other resource in the same account",
+      "displayOrder": 17,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-I",
+        "Deployment-Metrics",
+        "Fingerprinting"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "6c07b9a4-2e51-4d38-b6ad-5f9c2e41d708",
+      "numericId": 18,
+      "threatSource": "Insider",
+      "prerequisites": "with write access to the deploying AWS account (cloudformation:UpdateStack or cloudformation:DeleteStack on the marker stack, or ssm:PutParameter on its parameter)",
+      "threatAction": "alter the deployment-metrics stack description, delete the stack, or overwrite its SSM parameter outside CloudFormation",
+      "threatImpact": "a changed description or deleted stack understates or misattributes AWS's deployment count for this solution; an overwritten parameter changes no count, because only the description is ingested, but no longer matches what AWS reads; no effect on the deployment itself",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS020"
+      ],
+      "statement": "An Insider with write access to the deploying AWS account can alter the deployment-metrics stack description, delete the stack, or overwrite its SSM parameter outside CloudFormation, which leads to an understated or misattributed deployment count on AWS's side if the description changes or disappears, or to a parameter that no longer matches what AWS reads if only the parameter changes, and no impact on the deployment itself, since nothing in the deployment depends on or reads either",
+      "displayOrder": 18,
+      "status": "threatIdentified",
+      "tags": [
+        "STRIDE-T",
+        "Deployment-Metrics",
+        "Telemetry-Integrity"
+      ],
+      "metadata": []
+    },
+    {
+      "id": "1b45b866-63f7-488f-af06-66325accc3c1",
+      "numericId": 19,
+      "threatSource": "Malicious WhatsApp User",
+      "prerequisites": "with normal bot access (any end user of the deployed agent)",
+      "threatAction": "send text, or steer the agent into a reply, that the admin console's conversation viewer renders as markup or turns into an admin API request when an operator opens the conversation",
+      "threatImpact": "script execution in the operator's session, attacker-chosen GET requests to the admin API with the operator's token, or a conversation view that fails to render",
+      "impactedGoal": [],
+      "impactedAssets": [
+        "AS009",
+        "AS015"
+      ],
+      "statement": "A Malicious WhatsApp User with normal bot access can send text, or steer the agent into a reply, that the admin console's conversation viewer renders as markup or turns into an admin API request when an operator opens the conversation, which leads to script execution in the operator's session, attacker-chosen GET requests to the admin API with the operator's token, or a conversation view that fails to render",
+      "displayOrder": 19,
+      "status": "threatResolved",
+      "tags": [
+        "STRIDE-T",
+        "STRIDE-E",
+        "STRIDE-D",
+        "Stored-XSS",
+        "Request-Forgery"
+      ],
+      "metadata": []
+    }
+  ]
+}

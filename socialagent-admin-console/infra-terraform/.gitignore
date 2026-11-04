@@ -1,0 +1,9 @@
+*.tfstate
+*.tfstate.backup
+.terraform/
+*.zip
+.build/
+*.tfvars
+!*.tfvars.example
+backend-*.hcl
+!backend-*.hcl.example

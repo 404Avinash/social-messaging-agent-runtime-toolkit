@@ -1,0 +1,8 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security issue
+    url: https://aws.amazon.com/security/vulnerability-reporting/
+    about: Do not open a public issue for a vulnerability. Report it privately as described in SECURITY.md.

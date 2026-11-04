@@ -1,0 +1,30 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+schema_version: 3
+project: __project_name__
+environment: dev
+region: us-east-1
+deployment_type: docker
+blueprint: appointment-scheduler
+
+whatsapp:
+  phone_number_id: ""        # EUM Social phone number ARN
+  templates: templates.yaml  # synced to Meta on deploy
+
+# error_messages:
+#   throttle: ""
+#   validation: ""
+#   generic: ""
+#   timeout: ""
+
+features:
+  scheduler_lambda: true   # handlers/scheduler.py registers @app.on_schedule handlers; without this Lambda they never run
+  state_table: true        # the booking is per-user state; without the table it is a file in the container, gone when the session ends
+
+# Any other variable in infra-terraform/variables.tf, verbatim:
+terraform:
+  enable_force_destroy: true   # dev: buckets can be deleted with their contents
+  transcribe_languages: [es-MX, en-US]   # voice notes: identify among these only; a one-word note is misread with no hint
+
+outputs: {}

@@ -1,0 +1,11 @@
+Social Messaging Agent Runtime Toolkit (SMART)
+Copyright 2026 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+This product is licensed under the Apache License, Version 2.0; see the LICENSE file.
+
+This software does not bundle or redistribute third-party source code. Its runtime dependencies (e.g. boto3, cryptography, PyYAML, rich for the Python SDK, and the packages listed in socialagent-admin-console/package.json for the admin console) are declared in the respective manifests and resolved at build time under their own licenses; they are not included in this repository.
+
+Trademarks
+----------
+
+WhatsApp is a trademark of Meta Platforms, Inc. This project integrates with WhatsApp through AWS End User Messaging Social and is neither affiliated with, endorsed by, nor sponsored by Meta Platforms, Inc. All other trademarks are the property of their respective owners.
