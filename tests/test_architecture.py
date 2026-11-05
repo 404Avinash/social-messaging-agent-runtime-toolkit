@@ -35,7 +35,9 @@ from __future__ import annotations
 
 import ast
 import re
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -267,34 +269,40 @@ def test_model_id_lives_in_the_model_modules():
     )
 
 
-def _tracked_markdown() -> list[Path]:
-    """Markdown files under version control.
+def _tracked_files(globs: list[str]) -> list[Path]:
+    """Files under version control, matched by the given git globs.
 
     A developer checkout holds ignored local notes that never ship, so ask git
     when it is available. Without git (an exported tree, or a CI image that has
     no git binary), walk the tree but skip what is never shipped: generated
-    projects, and every hidden directory except .github, which holds caches such
-    as .uv-cache with third-party Markdown.
+    projects, and every hidden directory except .github, which holds caches
+    such as .uv-cache with third-party files.
     """
     try:
         out = subprocess.run(
-            ["git", "ls-files", "-z", "--", "*.md"],
+            ["git", "ls-files", "-z", "--", *globs],
             cwd=REPO_ROOT,
             capture_output=True,
             check=True,
             text=True,
         ).stdout
     except (OSError, subprocess.CalledProcessError):
-        found = []
-        for md in REPO_ROOT.rglob("*.md"):
-            parts = md.relative_to(REPO_ROOT).parts[:-1]
-            if _SKIP_PARTS.intersection(parts) or "projects" in parts:
-                continue
-            if any(p.startswith(".") and p != ".github" for p in parts):
-                continue
-            found.append(md)
+        found: set[Path] = set()
+        for pattern in globs:
+            for path in REPO_ROOT.rglob(pattern):
+                parts = path.relative_to(REPO_ROOT).parts[:-1]
+                if _SKIP_PARTS.intersection(parts) or "projects" in parts:
+                    continue
+                if any(p.startswith(".") and p != ".github" for p in parts):
+                    continue
+                found.add(path)
         return sorted(found)
     return sorted(REPO_ROOT / name for name in out.split("\0") if name)
+
+
+def _tracked_markdown() -> list[Path]:
+    """Markdown files under version control."""
+    return _tracked_files(["*.md"])
 
 
 @pytest.mark.architecture
@@ -390,37 +398,16 @@ def test_shipped_files_name_no_real_product_brands():
     from regressing. Tracked files only, so an untracked local directory
     cannot fail it; this file is the one place the names appear.
     """
-    import subprocess
-
     brands = ["Honda", "Toyota", "Tesla", "Civic", "RAV4", "Model 3", "Mazda"]
     pattern = re.compile(r"\b(" + "|".join(brands) + r")\b", re.IGNORECASE)
-    here = Path(__file__).resolve()
-    tracked = (
-        subprocess.run(
-            [
-                "git",
-                "ls-files",
-                "-z",
-                "--",
-                "*.py",
-                "*.md",
-                "*.yaml",
-                "*.yml",
-                "*.json",
-            ],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            check=True,
-        )
-        .stdout.decode()
-        .split("\0")
-    )
+    here = (REPO_ROOT / "tests" / "test_architecture.py").resolve()
+    tracked = _tracked_files(["*.py", "*.md", "*.yaml", "*.yml", "*.json"])
     offenders = [
-        f"{rel}:{i}"
-        for rel in tracked
-        if rel and (REPO_ROOT / rel).resolve() != here
+        f"{path.relative_to(REPO_ROOT)}:{i}"
+        for path in tracked
+        if path.resolve() != here
         for i, line in enumerate(
-            (REPO_ROOT / rel).read_text(encoding="utf-8", errors="ignore").splitlines(),
+            path.read_text(encoding="utf-8", errors="ignore").splitlines(),
             1,
         )
         if pattern.search(line)
@@ -450,25 +437,41 @@ def test_shipped_files_carry_only_placeholder_mx_numbers():
     pattern = re.compile(r"(?<!\d)\+?(521?[2-9]\d{9})(?!\d)")
     globs = ["*.py", "*.md", "*.yaml", "*.yml", "*.json", "*.ts", "*.tsx"]
     globs += ["*.tf", "*.example", "*.sh", "*.txt"]
-    tracked = (
-        subprocess.run(
-            ["git", "ls-files", "-z", "--", *globs],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            check=True,
-        )
-        .stdout.decode()
-        .split("\0")
-    )
+    tracked = _tracked_files(globs)
     offenders = [
-        f"{rel}:{i}: {number}"
-        for rel in tracked
-        if rel
+        f"{path.relative_to(REPO_ROOT)}:{i}: {number}"
+        for path in tracked
         for i, line in enumerate(
-            (REPO_ROOT / rel).read_text(encoding="utf-8", errors="ignore").splitlines(),
+            path.read_text(encoding="utf-8", errors="ignore").splitlines(),
             1,
         )
         for number in pattern.findall(line)
         if number not in placeholders
     ]
     assert offenders == [], f"real-looking MX numbers in shipped files: {offenders}"
+
+
+@pytest.mark.architecture
+def test_shipped_file_scans_work_without_git(tmp_path, monkeypatch):
+    """Both shipped-file scans fall back to walking a tree with no .git.
+
+    A release archive is not a checkout, so ``git ls-files`` raises
+    CalledProcessError there and the scans must not fail. Run both tests
+    against a copy of the repository whose .git directory is gone.
+    """
+    copy = tmp_path / "repo"
+    shutil.copytree(
+        REPO_ROOT,
+        copy,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            ".venv",
+            "__pycache__",
+            "build",
+            "node_modules",
+            ".terraform",
+        ),
+    )
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", copy)
+    test_shipped_files_name_no_real_product_brands()
+    test_shipped_files_carry_only_placeholder_mx_numbers()
