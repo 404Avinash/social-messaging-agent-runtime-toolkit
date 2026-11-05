@@ -3,16 +3,22 @@
 
 # Weekly version updates for the root uv project, the admin console backend
 # and UI, the requirements each blueprint copies into a scaffolded project,
-# the Terraform provider constraints, and the actions these workflows use. Of
-# the three Terraform roots only the admin console's (`~> 5.0`) has a
-# constraint Dependabot can raise: the other two use open-ended `>=`
-# constraints and commit no lock file, so they get no update PRs until they
-# gain an upper bound or a lock file. The blueprint Dockerfiles are left out
-# on purpose: their base image is the floating python:3.12-slim tag, which
-# every CodeBuild run pulls fresh. The Python and npm entries group minor and
-# patch bumps, so a week of them arrives as one PR per entry; Terraform and
-# Actions updates arrive one PR each. The workflows pin every action to a full
-# commit SHA with the release tag in a trailing comment; Dependabot moves both.
+# the Terraform provider constraints, and the actions these workflows use. The
+# Terraform roots commit no lock file, so Dependabot proposes only raises of
+# an upper bound: the `hashicorp/aws` ceiling of the stack and bootstrap roots
+# and the admin console's `~> 5.0`; their other providers are open-ended `>=`.
+# The blueprint Dockerfiles are left out on purpose: their base image is the
+# floating python:3.12-slim tag, which every CodeBuild run pulls fresh. Every
+# entry groups minor and patch bumps, so a week of them arrives as one PR per
+# entry, and a major bump arrives alone, so it can be tested on its own. A few
+# groups cut across that: packages that only work at matching versions (React,
+# Amplify, the Vite toolchain) arrive together whatever the update type, and
+# ruff arrives alone because a minor release can add lint rules. `hashicorp/aws`
+# majors are not proposed: a provider major is a planned migration (in the
+# admin console it changes the Cognito and IAM resources), not a weekly bump.
+# pip and npm raise a range's floor only when the new version needs it. The
+# workflows pin every action to a full commit SHA with the release tag in a
+# trailing comment; Dependabot moves both.
 #
 # Every entry has a cooldown: a release is not proposed until it is 7 days old,
 # so a compromised or yanked version has time to be caught upstream before it
@@ -31,9 +37,13 @@ updates:
     groups:
       python-minor-patch:
         update-types: [minor, patch]
+        # A ruff minor can enable new default rules and fail lint, so it comes
+        # in its own PR with the config change it needs.
+        exclude-patterns: ["ruff"]
 
   - package-ecosystem: pip
     directory: /socialagent-admin-console/backend
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: weekly
     cooldown:
@@ -51,6 +61,7 @@ updates:
       - /blueprints/minimal
       - /blueprints/personal-assistant
       - /blueprints/appointment-scheduler
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: weekly
     cooldown:
@@ -62,12 +73,24 @@ updates:
 
   - package-ecosystem: npm
     directory: /socialagent-admin-console
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
       semver-major-days: 30
     groups:
+      # These packages only work at matching versions, so every bump to them,
+      # a major included, arrives as one PR per group. Listed before
+      # ui-minor-patch because a dependency joins the first group it matches.
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      # The console's sign-in client: test sign-in (Cognito + TOTP) on a
+      # deployed console before merging.
+      amplify:
+        patterns: ["aws-amplify", "@aws-amplify/*"]
+      vite:
+        patterns: ["vite", "@vitejs/*", "vitest", "@vitest/*"]
       ui-minor-patch:
         update-types: [minor, patch]
 
@@ -80,6 +103,15 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      # One PR raises the stack's and the bootstrap's `hashicorp/aws` ceiling
+      # together, so the two roots stay on the same provider range. Deploy a
+      # stack on the new range before merging (see `infra-terraform/versions.tf`).
+      terraform-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "hashicorp/aws"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -87,3 +119,6 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
