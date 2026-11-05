@@ -313,6 +313,8 @@ WhatsApp is a trademark of Meta Platforms, Inc. This project integrates with Wha
 
 Each deployment creates a small CloudFormation stack whose description carries an anonymous tracking code, so AWS can count how many times this solution is deployed. It contains one free SSM Standard parameter and nothing else, and no other resource depends on it. Collected: the fact of a deployment. Not collected: usage data, message content, conversation data, or customer data. Opt out with `terraform.enable_deployment_metrics: false` in `socialagent.<env>.yaml`, before the first deploy (turning it off later adds a deletion and does not undo the count). It removes the stack but not the `TrackingId` tag carrying the same code on every taggable resource; that tag is not collected. Full detail, including the extra IAM permissions it needs, is in [infra-terraform/README.md](infra-terraform/README.md#operational-metrics-collection).
 
+How AWS handles the information it collects is described in the [AWS Privacy Policy](https://aws.amazon.com/privacy/).
+
 | What is emitted | Where | Used for |
 |-----------------|-------|----------|
 | The deployment marker stack, `<env>-<project>-deployment-metrics`: a CloudFormation stack whose description names this solution and carries the anonymous tracking code in parentheses, followed by a `(tag:core)` suffix | Your AWS account, created by your own credentials (`infra-terraform/metrics.tf`) | Counting deployments. The description is the only field this solution adds for the counter; like any stack, the count is tied to the account, Region and stack name, and to when the stack was created and deleted |

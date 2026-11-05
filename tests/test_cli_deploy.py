@@ -1037,3 +1037,24 @@ def test_readme_metrics_table_lists_what_is_emitted_and_what_is_not():
         "customer data",
     ):
         assert absent in rows[3]
+
+
+_PRIVACY_POLICY_SENTENCE = (
+    "How AWS handles the information it collects is described in the "
+    "[AWS Privacy Policy](https://aws.amazon.com/privacy/)."
+)
+
+
+@pytest.mark.parametrize(
+    ("doc", "heading"),
+    [
+        ("README.md", "## Anonymous Operational Metrics"),
+        ("infra-terraform/README.md", "## Operational Metrics Collection"),
+    ],
+)
+def test_metrics_disclosure_links_the_aws_privacy_policy(doc, heading):
+    """Both disclosure sections carry the same sentence linking the AWS
+    Privacy Policy (issue #66), inside the section rather than elsewhere."""
+    text = (REPO_ROOT / doc).read_text()
+    section = text.split(heading, 1)[1].split("\n## ", 1)[0]
+    assert _PRIVACY_POLICY_SENTENCE in section, f"{doc} {heading} lacks the link"
