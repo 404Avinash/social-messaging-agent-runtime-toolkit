@@ -47,6 +47,7 @@ def test_the_readme_install_line_uses_the_distribution_name():
     readme = (REPO_ROOT / "README.md").read_text()
     assert f"pip install {DISTRIBUTION}" in readme
     assert "pip install socialagent" not in readme
+    assert f"https://pypi.org/project/{DISTRIBUTION}/" in readme
 
 
 def test_the_cli_reports_the_published_distributions_version(monkeypatch):

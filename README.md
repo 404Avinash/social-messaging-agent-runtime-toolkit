@@ -1,11 +1,12 @@
 # 📱 Social Messaging Agent Runtime Toolkit
 
-*Short name: **SMART**. Python package and CLI: `socialagent`.*
+*Short name: **SMART**. On PyPI: [`smart-socialagent`](https://pypi.org/project/smart-socialagent/). CLI and Python package: `socialagent`.*
 
 > **The open-source toolkit to build, ship, and operate WhatsApp AI agents on AWS.** Bring your agent — SMART owns the channel.
 
 ![Status](https://img.shields.io/badge/status-beta-orange)
 ![Version](https://img.shields.io/badge/version-2026.10.0-blue)
+[![PyPI](https://img.shields.io/pypi/v/smart-socialagent)](https://pypi.org/project/smart-socialagent/)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![IaC](https://img.shields.io/badge/IaC-Terraform-7B42BC)
 ![Runtime](https://img.shields.io/badge/AWS-Bedrock%20AgentCore-FF9900)
