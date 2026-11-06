@@ -63,10 +63,10 @@ resource "aws_cloudformation_stack" "deployment_metrics" {
         Type = "AWS::SSM::Parameter"
         Properties = {
           # Reserved-prefix rule is enforced by the precondition above.
-          Name        = local.deployment_metrics_parameter_name
-          Type        = "String"
-          Tier        = "Standard"
-          Value       = local.tracking_id
+          Name  = local.deployment_metrics_parameter_name
+          Type  = "String"
+          Tier  = "Standard"
+          Value = local.tracking_id
           # CloudFormation does not apply a change to the template description
           # alone: a stack update with no resource change leaves the old
           # description in place. Carrying the version here gives every
