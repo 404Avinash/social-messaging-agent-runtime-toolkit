@@ -34,8 +34,9 @@ client name held in a variable.
 from __future__ import annotations
 
 import ast
+import fnmatch
+import os
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -287,15 +288,20 @@ def _tracked_files(globs: list[str]) -> list[Path]:
             text=True,
         ).stdout
     except (OSError, subprocess.CalledProcessError):
-        found: set[Path] = set()
-        for pattern in globs:
-            for path in REPO_ROOT.rglob(pattern):
-                parts = path.relative_to(REPO_ROOT).parts[:-1]
-                if _SKIP_PARTS.intersection(parts) or "projects" in parts:
-                    continue
-                if any(p.startswith(".") and p != ".github" for p in parts):
-                    continue
-                found.add(path)
+        found: list[Path] = []
+        for dirpath, dirnames, filenames in os.walk(REPO_ROOT):
+            dirnames[:] = [
+                d
+                for d in dirnames
+                if d not in _SKIP_PARTS
+                and d != "projects"
+                and (not d.startswith(".") or d == ".github")
+            ]
+            found.extend(
+                Path(dirpath) / name
+                for name in filenames
+                if any(fnmatch.fnmatchcase(name, g) for g in globs)
+            )
         return sorted(found)
     return sorted(REPO_ROOT / name for name in out.split("\0") if name)
 
@@ -452,26 +458,38 @@ def test_shipped_files_carry_only_placeholder_mx_numbers():
 
 
 @pytest.mark.architecture
-def test_shipped_file_scans_work_without_git(tmp_path, monkeypatch):
-    """Both shipped-file scans fall back to walking a tree with no .git.
+@pytest.mark.parametrize(
+    "git_error",
+    [subprocess.CalledProcessError(128, "git"), FileNotFoundError("git")],
+)
+def test_shipped_file_scans_work_without_git(tmp_path, monkeypatch, git_error):
+    """Without git, the scans walk the tree and skip what never ships.
 
-    A release archive is not a checkout, so ``git ls-files`` raises
-    CalledProcessError there and the scans must not fail. Run both tests
-    against a copy of the repository whose .git directory is gone.
+    A release archive is not a checkout, so ``git ls-files`` fails there in
+    one of two ways — git present but no repository (CalledProcessError), or
+    no git binary at all (FileNotFoundError). A brand name is planted in two
+    shipped files and in three places the walk must skip: a generated
+    project, a hidden cache and node_modules.
     """
-    copy = tmp_path / "repo"
-    shutil.copytree(
-        REPO_ROOT,
-        copy,
-        ignore=shutil.ignore_patterns(
-            ".git",
-            ".venv",
-            "__pycache__",
-            "build",
-            "node_modules",
-            ".terraform",
-        ),
-    )
-    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", copy)
-    test_shipped_files_name_no_real_product_brands()
+    for rel in (
+        "docs/guide.md",
+        ".github/notes.md",
+        "projects/demo/notes.md",
+        ".uv-cache/pkg/README.md",
+        "node_modules/pkg/README.md",
+    ):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("Toyota\n", encoding="utf-8")
+
+    def no_git(*args, **kwargs):
+        raise git_error
+
+    monkeypatch.setattr(subprocess, "run", no_git)
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", tmp_path)
+
+    found = {p.relative_to(tmp_path).as_posix() for p in _tracked_files(["*.md"])}
+    assert found == {"docs/guide.md", ".github/notes.md"}
+    with pytest.raises(AssertionError, match=r"docs[/\\]+guide\.md:1"):
+        test_shipped_files_name_no_real_product_brands()
     test_shipped_files_carry_only_placeholder_mx_numbers()
