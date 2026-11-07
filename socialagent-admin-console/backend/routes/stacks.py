@@ -104,13 +104,17 @@ def _deploys_unreadable(exc: Exception, project_name: str) -> dict:
     This used to answer ``200 []`` for every exception, so a permissions or
     throttling error on the CodeBuild calls looked like a stack that was never
     deployed (#62). A failure now answers 502 with the AWS error code as its
-    reason, the way the log routes report an unreadable group; the exception's
-    own text stays in the log, since boto3 names ARNs and the console's role.
+    reason, the way the log routes report an unreadable group, and names that
+    code in the message too: the Deploys tab shows the body's ``error``, so the
+    operator reads ``AccessDeniedException`` there instead of a generic failure.
+    The exception's own text stays in the log, since boto3 names ARNs and the
+    console's role.
     """
+    reason = _deploys_reason(exc)
     return error_response(
         502,
-        f"Could not read the deploys of {project_name} from CodeBuild",
-        reason=_deploys_reason(exc),
+        f"Could not read the deploys of {project_name} from CodeBuild ({reason})",
+        reason=reason,
     )
 
 

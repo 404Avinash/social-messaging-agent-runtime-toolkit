@@ -5,9 +5,7 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 ## [Unreleased]
 
 ### Admin console (beta)
-- The Stack Detail Deploys tab reports a CodeBuild read that failed instead of
-  showing an empty history, and reads a zip stack's `<prefix>-agent-zip-build`
-  project in the stack's own region.
+- The Stack Detail Deploys tab reports a failed CodeBuild read instead of showing an empty history, reads each stack's builds in the stack's own region, and reads a zip stack's builds from `<prefix>-agent-zip-build`.
 
 ## [2026.10.0] - 2026-11-05
 

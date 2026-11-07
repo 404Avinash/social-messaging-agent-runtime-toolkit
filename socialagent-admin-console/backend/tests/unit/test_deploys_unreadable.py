@@ -93,7 +93,10 @@ def test_a_failed_list_is_a_502_with_the_aws_code(stacks, monkeypatch):
     assert resp["statusCode"] == 502
     body = json.loads(resp["body"])
     assert body["reason"] == "AccessDeniedException"
-    assert "Could not read the deploys of dev-bot-agent-build from CodeBuild" in body["error"]
+    # The Deploys tab renders `error`, so the code has to be in the sentence too.
+    assert body["error"] == (
+        "Could not read the deploys of dev-bot-agent-build from CodeBuild (AccessDeniedException)"
+    )
     # boto3's own text names ARNs and the console's role, so it stays in the log.
     assert "not authorized" not in resp["body"]
 
@@ -148,6 +151,9 @@ def test_a_zip_stack_is_read_from_its_zip_build_project(stacks, monkeypatch):
 
 def test_the_stack_region_gets_its_own_codebuild_client(stacks, monkeypatch):
     monkeypatch.setattr(stacks, "_get_registry", lambda _id: dict(ELSEWHERE_STACK))
+    # Patching the module client keeps this test offline: if the handler ever fell
+    # back to the console's client, it would send a real CodeBuild request first.
+    monkeypatch.setattr(stacks, "codebuild", FakeCodeBuild())
     fakes = {}
     asked = _regions(monkeypatch, stacks, fakes)
     fakes[ELSEWHERE] = FakeCodeBuild(
