@@ -4,6 +4,9 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 
 ## [Unreleased]
 
+### WhatsApp channel
+- Outbound reactions: `messages.reaction(message_id, emoji)` queues an emoji on a user message through the in-band notify path (empty emoji removes a reaction). Existing projects pick this up with `socialagent runtime update`.
+
 ## [2026.10.0] - 2026-11-05
 
 The first public release. Everything below was in the toolkit when it was published.
