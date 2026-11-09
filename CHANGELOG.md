@@ -5,7 +5,7 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 ## [Unreleased]
 
 ### Fixed
-- `personal-assistant` now passes `transcribe_languages` to the transcription call in its `on_media` hook, so the setting applies to its voice notes as it does to the default path; an existing project merges the one-line change in `handlers/webhook.py` by hand.
+- `personal-assistant` now passes `transcribe_languages` to the transcription call in its `on_media` hook, so the setting applies to its voice notes as it does to the default path. `handlers/` is project code, so an existing project adds `language_options=config.transcribe_languages,` to the `transcribe_audio` call in `handlers/webhook.py` by hand. The blueprint's YAML sets `transcribe_languages: [es-MX, en-US]`, which had no effect on its voice notes before this fix, so check that the list names your users' languages before you deploy the change.
 
 ## [2026.10.0] - 2026-11-05
 
