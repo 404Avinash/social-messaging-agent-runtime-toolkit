@@ -301,6 +301,8 @@ SMART is in **beta**. What ships next, what is deferred and why, and the longer-
 
 Bug reports and feature requests go to [GitHub issues](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues), and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose a change and [AGENTS.md](AGENTS.md) for an architecture-oriented overview of the codebase. Report security issues privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
 
+If SMART is useful to you, please star the repository: it helps others find the project.
+
 ## License
 
 [Apache-2.0](LICENSE) © Amazon.com, Inc. or its affiliates. See [NOTICE](NOTICE) for attribution.
