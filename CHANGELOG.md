@@ -5,7 +5,7 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 ## [Unreleased]
 
 ### Admin console
-- The conversation viewer's "Delete conversation" asks for confirmation, naming the conversation and warning that its history is gone for good, before it deletes the conversation's AgentCore Memory events; one click no longer deletes.
+- The conversation viewer's "Delete conversation" asks for confirmation inside the viewer, naming the conversation and warning that the deletion cannot be undone, before it deletes the conversation's AgentCore Memory events; one click no longer deletes.
 
 ## [2026.10.0] - 2026-11-05
 

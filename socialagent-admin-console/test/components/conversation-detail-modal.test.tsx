@@ -180,24 +180,29 @@ describe("ConversationDetailModal delete", () => {
   });
 
   it("asks before deleting the conversation's history", async () => {
-    // The other two delete paths ask first; this one deleted every event of the
-    // conversation on the first click, with no undo.
+    // One click used to delete every event of the conversation, with no undo.
     const onDelete = vi.fn();
     render(<ConversationDetailModal visible onDismiss={() => {}} onDelete={onDelete} stackId="bot-dev" phoneHash="1555...0100" fullPhone="15555550100" />);
     await screen.findByText("0 messages");
+    expect(document.body.className).toMatch(/modal-open/);
+    expect(screen.queryByText(/cannot be undone/)).not.toBeInTheDocument();
 
-    // A closed Modal keeps its content in the DOM, so scope the click to the
-    // viewer rather than the confirmation's identically labelled button.
     const viewerDialog = screen.getByRole("dialog", { name: "Conversation — 1555...0100" });
     fireEvent.click(within(viewerDialog).getByRole("button", { name: "Delete conversation" }));
-    expect(api.deleteConversation).not.toHaveBeenCalled();
-    expect(onDelete).not.toHaveBeenCalled();
     expect(screen.getByText(/permanently delete every event in the conversation with 1555\.\.\.0100/)).toBeInTheDocument();
     expect(screen.getByText(/cannot be undone/)).toBeInTheDocument();
+    expect(api.deleteConversation).not.toHaveBeenCalled();
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(document.body.className).toMatch(/modal-open/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText(/cannot be undone/)).not.toBeInTheDocument();
+    expect(api.deleteConversation).not.toHaveBeenCalled();
+    expect(document.body.className).toMatch(/modal-open/);
 
     // The conversation is only deleted once the confirmation is confirmed.
-    const confirm = screen.getByRole("dialog", { name: "Delete conversation — 1555...0100" });
-    fireEvent.click(within(confirm).getByRole("button", { name: "Delete conversation" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Conversation — 1555...0100" })).getByRole("button", { name: "Delete conversation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(api.deleteConversation).toHaveBeenCalledWith("bot-dev", "15555550100"));
     await waitFor(() => expect(onDelete).toHaveBeenCalled());
   });
