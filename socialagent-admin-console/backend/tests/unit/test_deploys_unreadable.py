@@ -94,7 +94,10 @@ def test_a_failed_list_is_a_502_with_the_aws_code(stacks, monkeypatch):
     body = json.loads(resp["body"])
     assert body["reason"] == "AccessDeniedException"
     # The Deploys tab renders `error`, so the code has to be in the sentence too.
-    assert body["error"] == (
+    # Another test's event can still be on `app.current_event` when the whole
+    # suite runs, and error_response appends its request id then, so the
+    # sentence is checked for its start rather than for an exact match.
+    assert body["error"].startswith(
         "Could not read the deploys of dev-bot-agent-build from CodeBuild (AccessDeniedException)"
     )
     # boto3's own text names ARNs and the console's role, so it stays in the log.
