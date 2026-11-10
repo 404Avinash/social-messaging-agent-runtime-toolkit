@@ -173,6 +173,17 @@ A pull request is ready for review when:
 
 If any of these isn't true, say so in the pull request description rather than leaving it for review to discover. A pull request that says "docs not updated yet, follow-up issue linked below" is easier to review than one that silently omits them.
 
+## Reviewing a pull request (maintainers)
+
+The checks above are what a review looks for. This is how maintainers review a pull request from a fork without running untrusted code where it can reach them:
+
+1. **Pin the head and read the whole diff.** Note the head commit (`gh pr view <n> --json headRefOid`) and read the diff at that SHA, starting with the files that run: `Makefile`, `pyproject.toml`, `uv.lock`, `conftest.py`, `package.json`, `.github/`, Dockerfiles, and agent instruction files (`AGENTS.md`, `CLAUDE.md`, `.kiro/`, `.claude/`). Approve a first-time contributor's workflow runs only for a SHA you have read.
+2. **Never run a fork's code in your working clone or with your credentials in reach.** CI runs the suite without AWS access. To run anything CI does not show, use a throwaway container started from a fresh clone, with no host directory mounted and nothing from your environment, and check that the head it fetched is the SHA you read.
+3. **Check that each new test covers the change.** It passes at the head, and fails with the pull request's non-test changes restored to the merge base. Where the linked issue describes how to reproduce the bug, reproduce it on the merge base and on the head.
+4. **Check the rest against "What maintainers check"**, plus the commit authors against the pull request's author and the license of any new dependency.
+5. **A second maintainer repeats steps 1 to 4** on the same SHA and writes down what they ran and found. If the head moves, the diff is read again.
+6. **Merge in order.** Pull requests that add to `## [Unreleased]` in `CHANGELOG.md` conflict with each other: merge first the ones that do not touch it, then the others one at a time, updating the next branch after each merge. Merge with `gh pr merge <n> --match-head-commit <sha>` on the SHA that was reviewed.
+
 ## Code of Conduct
 
 This project has adopted the [Amazon Open Source Code of Conduct](https://aws.github.io/code-of-conduct). For more information see the [Code of Conduct FAQ](https://aws.github.io/code-of-conduct-faq) or contact opensource-codeofconduct@amazon.com with any additional questions or comments.
