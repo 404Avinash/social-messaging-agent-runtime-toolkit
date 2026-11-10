@@ -48,7 +48,7 @@ The first upload is release 2026.10.0, before the runtime split of ROADMAP 3.3, 
 - **Register `socialagent` as-is.** Why not: PyPI rejects it; `social-agent` exists and the names are equal after removing separators. Not available.
 - **Rename everything to a new word: distribution, import and CLI.** Removes any resemblance to the taken name. Why not: every document, blueprint, scaffolded project and every `import socialagent` an adopter has written changes, for a problem only the distribution name has.
 - **Use `smart` as the import name.** Reads as the project's short name. Why not: the name is taken on the index, and `smart` is a module any package may install; `import smart` would be ambiguous in any environment that has another.
-- **A different prefix than `smart-`.** Possible; the table above lists what is free. Why not yet: `smart-` is the project's short name and reads as such on the index. This is the open question below.
+- **A different prefix than `smart-`.** Possible; the table above lists what is free. Why not yet: `smart-` is the project's short name and reads as such on the index.
 - **Do not publish; keep installing from a clone.** Why not: the roadmap's dependency story for the runtime and the CLI-without-a-clone story both need an index, and the first upload is the first release: it ends the source-only way the toolkit ships today, so it needs its own release and security review rather than happening by accident.
 
 ## Consequences
