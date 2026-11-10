@@ -245,7 +245,7 @@ This deployment creates a small CloudFormation stack, `<env>-<project>-deploymen
 aws ssm get-parameter --name /<env>-<project>/deployment-metrics/tracking-code
 ```
 
-**What is collected.** The fact that a deployment of this solution happened, keyed to the opaque code above. **What is not collected:** no usage data, no message content, no conversation data, no customer data, and nothing AWS does not already see in its own CloudFormation control plane.
+**What is collected.** The fact that a deployment of this solution happened, keyed to the opaque code above, and the solution version (release) deployed. **What is not collected:** no usage data, no message content, no conversation data, no customer data, and nothing AWS does not already see in its own CloudFormation control plane.
 
 How AWS handles the information it collects is described in the [AWS Privacy Policy](https://aws.amazon.com/privacy/).
 

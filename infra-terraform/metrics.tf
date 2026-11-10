@@ -13,7 +13,7 @@
 # the parameter back.
 #
 # What is collected: the fact that a deployment happened, keyed to an opaque
-# code. No usage data, no message content, no customer data, no account
+# code, and the solution version (release) deployed. No usage data, no message content, no customer data, no account
 # identifiers beyond what AWS already sees in its own control plane.
 #
 # Set enable_deployment_metrics = false to opt out. That removes this stack but
