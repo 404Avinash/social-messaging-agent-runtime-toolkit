@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to our project. Whether it's a bug report, new feature, correction, or additional documentation, we greatly value feedback and contributions from our community.
 
+If you're here to contribute, you probably find SMART useful. If so, please star the repository: it's the simplest way to show your support, and it helps others find the project.
+
 Please read through this document before submitting any issues or pull requests to ensure we have all the necessary information to effectively respond to your bug report or contribution.
 
 If you plan to change code, read [AGENTS.md](AGENTS.md) first. It is the architecture overview of this repository and the fastest way to understand the two-layer model, the recipe system, and the current known issues before you touch code.
