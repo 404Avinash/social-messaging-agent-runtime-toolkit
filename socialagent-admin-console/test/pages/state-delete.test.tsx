@@ -3,6 +3,7 @@
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
+import createWrapper from "@cloudscape-design/components/test-utils/dom";
 import StatePage from "@/pages/state";
 import StackDetailPage from "@/pages/stack-detail";
 import { api } from "@/api/client";
@@ -35,6 +36,19 @@ async function askToDeleteEveryKey() {
 /** The confirmation dialog the "Delete selected" click opened. */
 async function confirmation() {
   return within(await screen.findByRole("dialog", { name: /^Delete \d+ key\(s\)$/ }));
+}
+
+/**
+ * The "Delete N key(s)" modal. Cloudscape keeps a closed Modal mounted and the
+ * vitest setup loads no CSS, so its text is in the DOM whether or not it is
+ * open; only the wrapper's isVisible() tells the two apart.
+ */
+function deleteKeysModal() {
+  const modal = createWrapper()
+    .findAllModals()
+    .find((m) => /^Delete \d+ key\(s\)$/.test(m.findHeader().getElement().textContent ?? ""));
+  expect(modal).toBeDefined();
+  return modal!;
 }
 
 /** Select every row, delete them, and confirm. */
@@ -106,7 +120,9 @@ describe("Deleting state keys", () => {
     render(<StatePage navigate={() => {}} />);
     await screen.findByText(KEYS[0]);
     fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    expect(deleteKeysModal().isVisible()).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: `Delete selected (${KEYS.length + 1})` }));
+    expect(deleteKeysModal().isVisible()).toBe(true);
 
     expect(
       await screen.findByText("This will permanently delete 4 state key(s) of 2 user(s) across 2 stack(s). This cannot be undone."),
@@ -128,7 +144,11 @@ describe("Deleting state keys", () => {
     vi.mocked(api.getState).mockResolvedValue(entries());
 
     await openStackStateTab();
-    await askToDeleteEveryKey();
+    await screen.findByText(KEYS[0]);
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    expect(deleteKeysModal().isVisible()).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: `Delete selected (${KEYS.length})` }));
+    expect(deleteKeysModal().isVisible()).toBe(true);
 
     expect(
       await screen.findByText("This will permanently delete 3 state key(s) of 1 user(s) on stack test-dev. This cannot be undone."),
