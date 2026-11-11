@@ -1470,6 +1470,21 @@ def test_agent_source_archive_applies_the_filters(archive: str):
         assert f'"{name}"' in excludes.group(1), f"{archive} no longer excludes {name}"
 
 
+def test_agent_source_archives_exclude_the_same_names():
+    """The Docker and zip archives leave out the same root-level names, so a
+    zip-mode project does not ship directories the agent never runs, such as
+    infrastructure/."""
+    tf = _code(CODEBUILD_TF.read_text())
+    names: dict[str, list[str]] = {}
+    for archive in ("agent_source", "agent_source_zip"):
+        block = _block(tf, f'data "archive_file" "{archive}"')
+        excludes = re.search(r"^\s*excludes\s*=\s*(.*)$", block, re.MULTILINE)
+        assert excludes, f"archive_file.{archive} has no excludes"
+        names[archive] = sorted(re.findall(r'"([^"]*)"', excludes.group(1)))
+
+    assert names["agent_source_zip"] == names["agent_source"]
+
+
 # Paths that must still ship, and every dropped path with the `excludes` entry
 # it yields: the shallowest dropped directory, or the file itself with
 # filepath.Match syntax escaped.
