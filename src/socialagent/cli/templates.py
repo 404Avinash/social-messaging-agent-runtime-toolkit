@@ -19,7 +19,7 @@ from socialagent.app import _make_provider
 from socialagent.cli import _schema
 from socialagent.cli._errors import CliError
 from socialagent.cli.config_file import find_config, load
-from socialagent.cli._project import project_root
+from socialagent.cli._project import find_project_root, project_root
 from socialagent.config import SocialAgentConfig
 from socialagent.templates.sync import sync_templates
 from socialagent.templates.validate import has_errors, validate_file
@@ -77,12 +77,21 @@ def cmd_templates_validate(args: argparse.Namespace) -> None:
     cfg = _project_config(root, args.env)
     configured = _configured_templates_path(args, root, cfg)
     templates = configured or str(root / "templates.yaml")
-    if not Path(templates).is_file():
+    path = Path(templates)
+    if not path.is_file():
         # A project with no templates (the minimal blueprint writes none) has
-        # nothing to validate; a path someone named and got wrong still fails.
-        if not configured:
+        # nothing to validate. A path someone named, a templates.yaml that is
+        # a directory or a broken symlink, and a run outside any project still
+        # fail: each is a mistake to report, not an empty project.
+        if (
+            not configured
+            and not os.path.lexists(templates)
+            and find_project_root() is not None
+        ):
             print(f"No templates to check: {templates} does not exist")
             return
+        if path.exists():
+            raise CliError(f"templates path is not a file: {templates}")
         raise CliError(f"templates file not found: {templates}")
     if _report(templates, _prefix(args, cfg), cfg):
         raise CliError(f"{templates} has errors that Meta would reject")
