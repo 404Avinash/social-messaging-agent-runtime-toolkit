@@ -9,8 +9,9 @@ Every command that runs Terraform or reads its variables (``deploy``,
 order:
 
 1. ``--tf-dir``, as given.
-2. The nearest ``infra-terraform/main.tf`` from the project upward: a SMART
-   checkout, which is what contributors and ``make tf-*`` run.
+2. The nearest SMART checkout from the project upward (``infra-terraform/main.tf``
+   with ``pyproject.toml`` and ``src/socialagent/`` beside it), which is what
+   contributors and ``make tf-*`` run.
 3. The managed copy: the Terraform this CLI ships (``_assets.terraform_dir``),
    copied into ``<project>/.socialagent/infra/<cli version>/``.
 
@@ -201,14 +202,26 @@ def materialize(
     return dest
 
 
+def _is_checkout(root: Path) -> bool:
+    """Whether *root* is a SMART checkout: its Terraform beside the SDK's source.
+
+    ``infra-terraform/`` is a common directory name, so a monorepo's own
+    Terraform above a project is not taken for SMART's: its ``variables.tf``
+    is not the one the tfvars are checked against. ``pyproject.toml`` and
+    ``src/socialagent/`` are what ``init`` takes for the repo root, and what
+    ``packaging.tf`` builds the layer from.
+    """
+    return (
+        (root / "infra-terraform" / "main.tf").is_file()
+        and (root / "pyproject.toml").is_file()
+        and (root / "src" / "socialagent").is_dir()
+    )
+
+
 def _checkout(start: Path) -> Path | None:
     start = start.resolve()
     return next(
-        (
-            p / "infra-terraform"
-            for p in (start, *start.parents)
-            if (p / "infra-terraform" / "main.tf").is_file()
-        ),
+        (p / "infra-terraform" for p in (start, *start.parents) if _is_checkout(p)),
         None,
     )
 
