@@ -4,6 +4,14 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 
 ## [Unreleased]
 
+### Fixed
+- `personal-assistant` now passes `transcribe_languages` to the transcription call in its `on_media` hook, so the setting applies to its voice notes as it does to the default path. `handlers/` is project code, so an existing project adds `language_options=config.transcribe_languages,` to the `transcribe_audio` call in `handlers/webhook.py` by hand. The blueprint's YAML sets `transcribe_languages: [es-MX, en-US]`, which had no effect on its voice notes before this fix, so check that the list names your users' languages before you deploy the change.
+- The zip-mode agent archive leaves out the project's `infrastructure/` directory, like the Docker-mode archive. A zip-mode project with that directory gets a new archive hash, so its next deploy rebuilds the package once.
+
+### Admin console
+- The conversation viewer's "Delete conversation" asks for confirmation inside the viewer, naming the conversation and warning that the deletion cannot be undone, before it deletes the conversation's AgentCore Memory events; one click no longer deletes.
+- The Stack Detail Deploys tab reports a failed CodeBuild read instead of showing an empty history, reads each stack's builds in the stack's own region, and reads a zip stack's builds from `<prefix>-agent-zip-build`.
+
 ## [2026.10.0] - 2026-11-05
 
 The first public release. Everything below was in the toolkit when it was published.
