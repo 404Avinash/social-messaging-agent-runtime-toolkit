@@ -48,11 +48,11 @@ Question for the maintainers: accept CLI-managed Terraform as the default for a 
 - A layer built in package mode needs the pinned release on PyPI, so a release publishes before any deploy pins it, and a contributor tests an unreleased build with `--sdk-wheel`.
 - `SOCIALAGENT_VERSION` stays the guard between the Lambdas and the agent.
 - Every stack rebuilds its Lambda layer once, on the first deploy in package mode, because what the layer is built from changes.
-- Planned, not shipped, each with its own issue:
-  - Two variables that attach project statements to the existing custom policies, and `socialagent infra eject`, which copies the module into the project for anyone who wants to own it. The variables come with an explicit deny on `social-messaging:*` on the runtime role that they cannot override, and a validation that rejects any `social-messaging:` action at plan time, each with a test; both get a security review.
+- Planned, not shipped:
+  - Two variables that attach project statements to the existing custom policies, and `socialagent infra eject`, which copies the module into the project for anyone who wants to own it. The variables come with an explicit deny on `social-messaging:*` on the runtime role that they cannot override, and a validation that rejects any `social-messaging:` action at plan time, each with a test; both get a security review ([#179](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/179); the deny can ship first, [#178](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/178)).
   - `socialagent tf`: any other Terraform command with the stack's context, with the same checks as `deploy` and `destroy`, refusing `-replace`, `taint` and `state rm` on the AgentCore Runtime without `--force`.
   - Deploying the admin console without a clone.
-  - The runtime as `smart-socialagent-runtime` (see Alternatives considered), including the release check that the two distributions publish together with the same version.
+  - The runtime as `smart-socialagent-runtime` (see Alternatives considered), including the release check that the two distributions publish together with the same version ([#132](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/132)).
 
 ## Open questions
 
