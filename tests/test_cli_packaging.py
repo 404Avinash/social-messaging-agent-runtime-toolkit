@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
+import textwrap
 import time
 import tomllib
 import urllib.error
@@ -58,10 +60,14 @@ _EXPECTED_ASSETS = [
 @pytest.fixture(scope="module")
 def built_wheel(tmp_path_factory) -> Path:
     """Build the wheel once and return its path."""
-    out_dir = tmp_path_factory.mktemp("wheel")
+    return _build_wheel(REPO_ROOT, tmp_path_factory.mktemp("wheel"))
+
+
+def _build_wheel(source: Path, out_dir: Path) -> Path:
+    """Build a wheel from *source* into *out_dir*; skip if no builder is available."""
     result = subprocess.run(
         [sys.executable, "-m", "build", "--wheel", "--outdir", str(out_dir)],
-        cwd=REPO_ROOT,
+        cwd=source,
         capture_output=True,
         text=True,
     )
@@ -70,7 +76,7 @@ def built_wheel(tmp_path_factory) -> Path:
         # what the Makefile and CI use.
         result = subprocess.run(
             ["uv", "build", "--wheel", "--out-dir", str(out_dir)],
-            cwd=REPO_ROOT,
+            cwd=source,
             capture_output=True,
             text=True,
         )
@@ -274,6 +280,250 @@ def test_layer_archive_carries_everything_the_build_reads():
         f"the layer archive in infra-terraform/packaging.tf omits {missing}, which "
         "`pip install .` reads; add them to layer_root_files or layer_trees"
     )
+
+
+# ── The stack's Terraform in the wheel ────────────────────────────────────────
+
+_TF_IN_WHEEL = "socialagent/cli/_assets/infra-terraform/"
+
+# Leftovers a deployer's infra-terraform/ can hold, none of which may ship:
+# Terraform's own writes, account-specific inputs, credentials, the tests.
+_TF_LEFTOVERS = [
+    ".terraform/providers/registry/aws/provider-binary",
+    ".terraform.lock.hcl",
+    "terraform.tfvars",
+    "prod.auto.tfvars.json",
+    "terraform.tfstate",
+    "terraform.tfstate.backup",
+    "backend-dev.hcl",
+    "envs/my-bot-dev.tfvars",
+    "bootstrap/terraform.tfstate.d/socialagent-dev/terraform.tfstate",
+    "bootstrap/.terraform/terraform.tfstate",
+    "bootstrap/.terraform.lock.hcl",
+    "modules/event-api/.build/authorizer.zip",
+    "modules/runtime/.terraform/agent-source.zip",
+    ".env",
+    "deployer.pem",
+    "apply.log",
+]
+
+
+def _wheel_terraform(wheel: Path) -> list[str]:
+    return sorted(
+        n[len(_TF_IN_WHEEL) :]
+        for n in zipfile.ZipFile(wheel).namelist()
+        if n.startswith(_TF_IN_WHEEL)
+    )
+
+
+def _tracked_terraform() -> list[str]:
+    """What git tracks under infra-terraform/, less the mocked plan tests."""
+    out = subprocess.run(
+        ["git", "ls-files", "infra-terraform"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if out.returncode != 0:
+        pytest.skip("not a git checkout")
+    return sorted(
+        f[len("infra-terraform/") :]
+        for f in out.stdout.split()
+        if not f.startswith("infra-terraform/tftest/")
+    )
+
+
+@pytest.mark.slow
+def test_wheel_ships_the_stacks_terraform(built_wheel: Path):
+    """The wheel carries the root, bootstrap/ and every module, and nothing else.
+
+    The CLI materializes this tree into a project that has no checkout, so a
+    file missing here is a deploy that fails only for pip-installed users.
+    """
+    shipped = _wheel_terraform(built_wheel)
+    for required in ("main.tf", "variables.tf", "versions.tf", "packaging.tf"):
+        assert required in shipped
+    assert {"bootstrap/main.tf", "bootstrap/variables.tf"} <= set(shipped)
+    modules = sorted(
+        p.name
+        for p in (REPO_ROOT / "infra-terraform" / "modules").iterdir()
+        if p.is_dir()
+    )
+    assert [m for m in modules if f"modules/{m}/main.tf" in shipped] == modules
+    assert "modules/event-api/authorizer.py" in shipped
+    assert not [f for f in shipped if f.startswith("tftest/")]
+    assert shipped == _tracked_terraform()
+
+
+@pytest.mark.slow
+def test_wheel_leaves_out_what_a_deployers_terraform_dir_holds(tmp_path: Path):
+    """Built from a tree full of leftovers, and without the repo .gitignore.
+
+    hatchling drops gitignored files from an only-include, so a build from a
+    clean checkout cannot show that the wheel's own `exclude` holds. This one
+    builds from a copy without the .gitignore, with each leftover planted.
+    """
+    from socialagent.cli import _infra
+
+    src = tmp_path / "src-tree"
+    src.mkdir()
+    for name in ("pyproject.toml", "VERSION", "LICENSE", "NOTICE"):
+        (src / name).write_bytes((REPO_ROOT / name).read_bytes())
+    for tree in (
+        "src/socialagent",
+        "packages/socialagent-runtime",
+        "blueprints",
+        "recipes",
+        "infra-terraform",
+    ):
+        shutil.copytree(
+            REPO_ROOT / tree,
+            src / tree,
+            ignore=shutil.ignore_patterns("__pycache__", ".terraform", "*.pyc"),
+        )
+    tf = src / "infra-terraform"
+    for rel in _TF_LEFTOVERS:
+        (tf / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tf / rel).write_text("leftover\n")
+    expected = _infra.tree_files(tf)
+
+    shipped = _wheel_terraform(_build_wheel(src, tmp_path / "out"))
+    assert not set(_TF_LEFTOVERS) & set(shipped), sorted(
+        set(_TF_LEFTOVERS) & set(shipped)
+    )
+    # The managed copy's filter agrees with the wheel's, file for file.
+    assert shipped == expected
+    assert "terraform.tfvars.example" in shipped
+
+
+def _hcl_list(text: str, name: str) -> list[str]:
+    match = re.search(rf"^\s*{name}\s*=\s*\[(.*?)\]", text, re.M | re.S)
+    assert match, f"no `{name} = [...]`"
+    return re.findall(r'"([^"]+)"', match.group(1))
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("archive", ["layer", "template-sync"])
+def test_archives_without_terraform_still_build_the_sdk(tmp_path: Path, archive: str):
+    """The Lambda layer and template-sync builds run `pip install .` on a tree without infra-terraform/.
+
+    That is why the wheel takes infra-terraform/ through an only-include: a
+    force-include whose source is missing aborts the build, and these archives
+    (packaging.tf, modules/templates) leave the Terraform out. Each tree here
+    holds what its archive holds.
+    """
+    src = tmp_path / archive
+    src.mkdir()
+    infra = REPO_ROOT / "infra-terraform"
+    if archive == "layer":
+        packaging_tf = (infra / "packaging.tf").read_text()
+        files = _hcl_list(packaging_tf, "layer_root_files")
+        trees = _hcl_list(packaging_tf, "layer_trees")
+    else:
+        files = ["pyproject.toml", "VERSION"]
+        block = re.search(
+            r"force_included_dirs\s*=\s*\{(.*?)\n  \}",
+            (infra / "main.tf").read_text(),
+            re.DOTALL,
+        )
+        trees = re.findall(r'"([^"]+)"\s*=', block.group(1))
+        for f in (REPO_ROOT / "src" / "socialagent").rglob("*.py"):
+            rel = f.relative_to(REPO_ROOT)
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_bytes(f.read_bytes())
+    for name in files:
+        (src / name).write_bytes((REPO_ROOT / name).read_bytes())
+    for tree in trees:
+        if not (src / tree).exists():
+            shutil.copytree(
+                REPO_ROOT / tree,
+                src / tree,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
+    assert not (src / "infra-terraform").exists()
+
+    names = zipfile.ZipFile(_build_wheel(src, tmp_path / "out")).namelist()
+    assert "socialagent/cli/__init__.py" in names
+    assert not [n for n in names if n.startswith(_TF_IN_WHEEL)]
+
+
+@pytest.mark.slow
+def test_pip_installed_cli_runs_its_own_terraform(installed_cli: Path, tmp_path: Path):
+    """With no checkout, the installed CLI resolves the Terraform it ships.
+
+    ``config tfvars`` reads it in place and writes nothing; commands that run
+    Terraform get the project's managed copy, whose bootstrap root validates.
+    ``deploy`` and ``destroy`` refuse the copy until the Lambda layer can be
+    built without the SDK source next to the root.
+    """
+    work = tmp_path / "work"
+    work.mkdir()
+    socialagent = str(installed_cli / "socialagent")
+    init = subprocess.run(
+        [socialagent, "init", "mybot", "--blueprint", "minimal"],
+        cwd=work,
+        capture_output=True,
+        text=True,
+    )
+    assert init.returncode == 0, init.stderr
+    project = (work / "mybot").resolve()
+
+    tfvars = subprocess.run(
+        [socialagent, "config", "tfvars"], cwd=project, capture_output=True, text=True
+    )
+    assert tfvars.returncode == 0, tfvars.stderr
+    assert '"project_name": "mybot"' in tfvars.stdout
+    assert not (project / ".socialagent").exists()
+
+    # Through the resolver deploy uses, with a fake runner and a given account:
+    # nothing here can reach AWS or run Terraform.
+    script = textwrap.dedent(
+        """
+        import argparse
+        from pathlib import Path
+        from socialagent.cli import _deploy, _infra
+        from socialagent.cli._errors import CliError
+
+        print(_infra.find_tf_dir(Path.cwd()))
+        args = argparse.Namespace(env="dev", plan=True, yes=False, tf_dir="")
+        calls = []
+        try:
+            _deploy.deploy(args, runner=lambda cmd, **kw: calls.append(cmd), account="123456789012")
+        except CliError as exc:
+            print("refused:", exc)
+        print("terraform calls:", len(calls))
+        """
+    )
+    resolved = subprocess.run(
+        [str(installed_cli / "python"), "-c", script],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+    assert resolved.returncode == 0, resolved.stderr
+    lines = resolved.stdout.splitlines()
+    copy = Path(lines[0])
+    assert copy.parent == project / ".socialagent" / "infra"
+    assert (copy / "main.tf").is_file() and (copy / "bootstrap" / "main.tf").is_file()
+    assert "edits there are overwritten" in resolved.stderr
+    assert any(
+        line.startswith("refused: `socialagent deploy` cannot run from")
+        for line in lines
+    )
+    assert lines[-1] == "terraform calls: 0"
+
+    terraform = shutil.which("terraform")
+    if terraform is None:
+        pytest.skip("terraform is not on PATH; the bootstrap root was not validated")
+    env = {**os.environ, "TF_DATA_DIR": str(tmp_path / "tf-data")}
+    for step in (["init", "-backend=false", "-input=false"], ["validate"]):
+        ran = subprocess.run(
+            [terraform, f"-chdir={copy / 'bootstrap'}", *step],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert ran.returncode == 0, ran.stdout + ran.stderr
 
 
 @pytest.mark.slow

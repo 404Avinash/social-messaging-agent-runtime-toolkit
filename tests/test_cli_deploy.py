@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from socialagent.cli import _deploy, _schema, _tfvars
+from socialagent.cli import _deploy, _infra, _schema, _tfvars
 from socialagent.cli._errors import CliError
 from socialagent.cli._runner import CommandError, Result
 
@@ -197,6 +197,8 @@ def test_missing_config_and_missing_checkout(tmp_path, monkeypatch):
         "schema_version: 3\nproject: my-bot\nenvironment: dev\nregion: us-east-1\n"
     )
     (tmp_path / ".git").mkdir()
+    # Nor does the CLI ship any Terraform to fall back on.
+    monkeypatch.setattr(_infra, "terraform_dir", lambda: tmp_path / "no-such-dir")
     with pytest.raises(CliError, match="could not find infra-terraform"):
         _deploy.deploy(_args(), runner=FakeRunner(), account=ACCOUNT)
 
