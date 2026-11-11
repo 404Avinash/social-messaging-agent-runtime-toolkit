@@ -8,7 +8,12 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 - The deployment marker's description ends with the solution version, `(vX.Y.Z)`, so the anonymous deployment count can be broken down by release (#105).
 
 ### Fixed
+- `personal-assistant` now passes `transcribe_languages` to the transcription call in its `on_media` hook, so the setting applies to its voice notes as it does to the default path. `handlers/` is project code, so an existing project adds `language_options=config.transcribe_languages,` to the `transcribe_audio` call in `handlers/webhook.py` by hand. The blueprint's YAML sets `transcribe_languages: [es-MX, en-US]`, which had no effect on its voice notes before this fix, so check that the list names your users' languages before you deploy the change.
 - An upgraded stack now takes the new marker description: the marker parameter's description carries the version, so each release is a resource change CloudFormation applies, instead of a description-only change it ignores and Terraform plans again on every deploy (#68).
+
+### Admin console
+- The conversation viewer's "Delete conversation" asks for confirmation inside the viewer, naming the conversation and warning that the deletion cannot be undone, before it deletes the conversation's AgentCore Memory events; one click no longer deletes.
+- The Stack Detail Deploys tab reports a failed CodeBuild read instead of showing an empty history, reads each stack's builds in the stack's own region, and reads a zip stack's builds from `<prefix>-agent-zip-build`.
 
 ## [2026.10.0] - 2026-11-05
 

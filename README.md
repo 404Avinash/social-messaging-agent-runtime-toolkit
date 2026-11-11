@@ -4,6 +4,8 @@
 
 > **The open-source toolkit to build, ship, and operate WhatsApp AI agents on AWS.** Bring your agent — SMART owns the channel.
 
+[![CI](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/ci.yml?query=branch%3Amain)
+[![Security](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/security.yml?query=branch%3Amain)
 ![Status](https://img.shields.io/badge/status-beta-orange)
 ![Version](https://img.shields.io/badge/version-2026.10.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
@@ -300,6 +302,8 @@ SMART is in **beta**. What ships next, what is deferred and why, and the longer-
 ## Contributing
 
 Bug reports and feature requests go to [GitHub issues](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues), and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose a change and [AGENTS.md](AGENTS.md) for an architecture-oriented overview of the codebase. Report security issues privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
+
+If SMART is useful to you, please star the repository: it helps others find the project.
 
 ## License
 
