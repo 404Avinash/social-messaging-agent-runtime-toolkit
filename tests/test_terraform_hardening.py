@@ -917,6 +917,19 @@ def test_no_bucket_logs_its_own_log_deliveries_without_end():
     ], f"another bucket logs to itself: {self_logging}"
 
 
+def test_deployer_scope_notes_tell_how_to_log_audit_and_template_buckets():
+    """Issue #93: SECURITY.md explains why the audit-trails and template-sync
+    buckets lack access logging by default and tells production deployers how
+    to log them (a separate log bucket or CloudTrail S3 data events).
+    """
+    security_md = (REPO_ROOT / "SECURITY.md").read_text()
+    notes = security_md.split("## Scope Notes for Deployers", 1)[1].split("\n## ", 1)[0]
+    assert "template-sync bucket" in notes
+    assert "audit-trails bucket" in notes
+    assert "CloudTrail S3 data events" in notes
+    assert "separate log bucket" in notes
+
+
 def test_console_registry_listing_skips_the_access_log_prefix():
     """The per-admin registry bucket logs to itself, beside the stacks at its
     root, and the backend lists that root for stacks. It skips the prefix the
