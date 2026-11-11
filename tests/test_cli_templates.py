@@ -383,6 +383,7 @@ def test_validate_missing_configured_templates_file_is_an_error(
     from socialagent.cli.templates import cmd_templates_validate
 
     monkeypatch.delenv("TEMPLATES_PATH", raising=False)
+    (tmp_path / "agent.py").write_text("")
     (tmp_path / "templates.yaml").unlink()
     ns = argparse.Namespace(env="dev", prefix="", templates="")
     if source == "flag":
