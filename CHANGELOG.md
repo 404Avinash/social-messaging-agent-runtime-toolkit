@@ -11,6 +11,7 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 ### Admin console
 - The conversation viewer's "Delete conversation" asks for confirmation inside the viewer, naming the conversation and warning that the deletion cannot be undone, before it deletes the conversation's AgentCore Memory events; one click no longer deletes.
 - The Stack Detail Deploys tab reports a failed CodeBuild read instead of showing an empty history, reads each stack's builds in the stack's own region, and reads a zip stack's builds from `<prefix>-agent-zip-build`.
+- The Stack Detail header, the Overview's "Last deploy" column and the Stacks page's "Last deploy" column read the last deploy from the stack's own CodeBuild project, so a zip stack or a stack deployed in another region no longer shows "-" where it was deployed.
 
 ## [2026.10.0] - 2026-11-05
 
