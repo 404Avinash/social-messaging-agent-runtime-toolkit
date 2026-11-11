@@ -12,14 +12,18 @@ the Deploys tab listed the builds. The read now goes through
 ``_deploys_builder``, the same helper the Deploys tab uses (#62, #142).
 """
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
+from botocore.exceptions import ClientError
 
 CONSOLE_REGION = "us-east-1"
 ELSEWHERE = "eu-west-1"
 
 WEBHOOK = "dev-bot-webhook"
+
+END_TIME = "2026-11-01T10:00:00Z"
 
 STACK = {
     "project": "bot",
@@ -39,18 +43,32 @@ ELSEWHERE_STACK = {**STACK, "region": ELSEWHERE}
 class FakeCodeBuild:
     """The two CodeBuild calls the last-deploy read makes, and what each answers."""
 
-    def __init__(self, ids=None, builds=None):
+    def __init__(self, ids=None, builds=None, fail=None):
         self.ids = [] if ids is None else ids
         self.builds = [] if builds is None else builds
+        self.fail = fail or {}
         self.calls = []
 
     def list_builds_for_project(self, **kw):
         self.calls.append(("list_builds_for_project", kw))
+        if "list" in self.fail:
+            raise self.fail["list"]
         return {"ids": self.ids}
 
     def batch_get_builds(self, **kw):
         self.calls.append(("batch_get_builds", kw))
+        if "batch" in self.fail:
+            raise self.fail["batch"]
         return {"builds": self.builds}
+
+
+def _build(build_id: str) -> dict:
+    """A build as ``batch_get_builds`` answers it."""
+    return {"id": build_id, "endTime": END_TIME}
+
+
+def _client_error(code: str, message: str = "failed") -> ClientError:
+    return ClientError({"Error": {"Code": code, "Message": message}}, "ListBuildsForProject")
 
 
 @pytest.fixture
@@ -62,18 +80,23 @@ def stacks(monkeypatch):
     return module
 
 
+def _stub_the_other_reads(monkeypatch, stacks):
+    """Stub every read of ``_stack_status`` that is not the last-deploy one."""
+    monkeypatch.setattr(
+        stacks,
+        "_lambda_metrics",
+        lambda names: [{"name": "webhook", "userInvocations": 0, "status": "healthy"}],
+    )
+    monkeypatch.setattr(stacks, "s3", MagicMock())
+    monkeypatch.setattr(stacks.boto3, "client", lambda *a, **k: MagicMock())
+
+
 @pytest.fixture
 def status(stacks, monkeypatch):
     """``_stack_status`` over a stack, with every other read stubbed out."""
 
     def _status(config: dict) -> dict:
-        monkeypatch.setattr(
-            stacks,
-            "_lambda_metrics",
-            lambda names: [{"name": "webhook", "userInvocations": 0, "status": "healthy"}],
-        )
-        monkeypatch.setattr(stacks, "s3", MagicMock())
-        monkeypatch.setattr(stacks.boto3, "client", lambda *a, **k: MagicMock())
+        _stub_the_other_reads(monkeypatch, stacks)
         return stacks._stack_status(config)
 
     return _status
@@ -93,21 +116,28 @@ def _regions(monkeypatch, stacks, fakes: dict) -> list:
 
 def test_a_zip_stack_is_read_from_its_zip_build_project(stacks, status, monkeypatch):
     """A zip stack is built in ``<prefix>-agent-zip-build``, not the docker one."""
-    fake = FakeCodeBuild(ids=["dev-bot-agent-zip-build:abc"])
+    build_id = "dev-bot-agent-zip-build:abc"
+    fake = FakeCodeBuild(ids=[build_id], builds=[_build(build_id)])
     monkeypatch.setattr(stacks, "codebuild", fake)
 
-    status(ZIP_STACK)
+    result = status(ZIP_STACK)
 
     assert fake.calls[0][1]["projectName"] == "dev-bot-agent-zip-build"
+    # The value has to come out of it, not only the project name: a build list
+    # that answers nothing leaves lastDeploy empty and the case would pass on
+    # the read having failed instead of on the read having worked.
+    assert result["lastDeploy"] == END_TIME
 
 
 def test_a_docker_stack_is_read_from_its_docker_build_project(stacks, status, monkeypatch):
-    fake = FakeCodeBuild(ids=["dev-bot-agent-build:abc"])
+    build_id = "dev-bot-agent-build:abc"
+    fake = FakeCodeBuild(ids=[build_id], builds=[_build(build_id)])
     monkeypatch.setattr(stacks, "codebuild", fake)
 
-    status(STACK)
+    result = status(STACK)
 
     assert fake.calls[0][1]["projectName"] == "dev-bot-agent-build"
+    assert result["lastDeploy"] == END_TIME
 
 
 def test_a_stack_in_another_region_gets_its_own_codebuild_client(stacks, status, monkeypatch):
@@ -127,14 +157,16 @@ def test_a_stack_in_another_region_gets_its_own_codebuild_client(stacks, status,
 
 
 def test_a_stack_in_the_console_region_keeps_the_module_client(stacks, status, monkeypatch):
-    fake = FakeCodeBuild(ids=["dev-bot-agent-build:abc"])
+    build_id = "dev-bot-agent-build:abc"
+    fake = FakeCodeBuild(ids=[build_id], builds=[_build(build_id)])
     monkeypatch.setattr(stacks, "codebuild", fake)
     asked = _regions(monkeypatch, stacks, {})
 
-    status(STACK)
+    result = status(STACK)
 
     assert asked == []
     assert fake.calls[0][1]["projectName"] == "dev-bot-agent-build"
+    assert result["lastDeploy"] == END_TIME
 
 
 def test_the_last_deploy_is_the_build_that_ended_last(stacks, status, monkeypatch):
@@ -158,3 +190,25 @@ def test_a_stack_with_no_builds_reads_no_deploy(stacks, status, monkeypatch):
     result = status(STACK)
 
     assert result["lastDeploy"] == ""
+
+
+def test_a_failed_read_in_another_region_still_lists_the_stack(stacks, monkeypatch):
+    """A CodeBuild error in the stack's own Region leaves the Stacks list loading."""
+    _stub_the_other_reads(monkeypatch, stacks)
+    monkeypatch.setattr(stacks, "codebuild", FakeCodeBuild())
+    fakes = {}
+    asked = _regions(monkeypatch, stacks, fakes)
+    fakes[ELSEWHERE] = FakeCodeBuild(
+        fail={"list": _client_error("AccessDeniedException", "not authorized")}
+    )
+    monkeypatch.setattr(stacks, "_list_registry", lambda: [dict(ELSEWHERE_STACK)])
+
+    resp = stacks.handle_list_stacks({}, {})
+
+    assert asked == [("codebuild", ELSEWHERE)]
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    # The stack is still listed, and its last deploy is unknown rather than
+    # the whole page failing to load.
+    assert body[0]["stack"]["project"] == "bot"
+    assert body[0]["lastDeploy"] == ""
