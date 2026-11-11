@@ -300,6 +300,67 @@ def test_copy_is_replaced_when_the_cli_terraform_changes(packaged, project, caps
     assert [p.name for p in (project / ".socialagent" / "infra").iterdir()] == [VERSION]
 
 
+@pytest.mark.parametrize("fails", ["rmtree", "unlink", "copy2", "marker"])
+@pytest.mark.parametrize("after", [0, 1, 2])
+def test_an_interrupted_refresh_never_loses_bootstrap_state(
+    packaged, project, monkeypatch, fails, after
+):
+    # Bootstrap's state is the only record of the backend it created, so a
+    # refresh that dies at any step must leave it where the next run finds it,
+    # and that run must finish the copy rather than take the partial one.
+    tf = _infra.materialize(project)
+    state = tf / "bootstrap" / "terraform.tfstate.d" / "socialagent-dev"
+    state.mkdir(parents=True)
+    (state / "terraform.tfstate").write_text('{"serial": 7}')
+    (tf / "terraform.tfstate").write_text('{"serial": 3}')
+    (tf / ".terraform").mkdir()
+    (tf / ".terraform" / "stale.zip").write_text("old")
+    (tf / "extra.tf").write_text("# an edit\n")
+    (packaged / "main.tf").write_text("# root, next build\n")
+
+    calls = {"n": 0}
+
+    def failing(real):
+        def wrapper(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] > after:
+                raise OSError("interrupted")
+            return real(*args, **kwargs)
+
+        return wrapper
+
+    with monkeypatch.context() as m:
+        if fails == "rmtree":
+            m.setattr(_infra.shutil, "rmtree", failing(_infra.shutil.rmtree))
+        elif fails == "copy2":
+            m.setattr(_infra.shutil, "copy2", failing(_infra.shutil.copy2))
+        elif fails == "unlink":
+            m.setattr(Path, "unlink", failing(Path.unlink))
+        else:
+            real_write = Path.write_text
+
+            def write_text(self, *args, **kwargs):
+                if self.name == _infra.MARKER:
+                    raise OSError("interrupted")
+                return real_write(self, *args, **kwargs)
+
+            m.setattr(Path, "write_text", write_text)
+        try:
+            _infra.materialize(project)
+        except OSError:
+            pass
+
+    assert (state / "terraform.tfstate").read_text() == '{"serial": 7}'
+    assert (tf / "terraform.tfstate").read_text() == '{"serial": 3}'
+    assert _infra.materialize(project) == tf
+    assert (tf / "main.tf").read_text() == "# root, next build\n"
+    assert not (tf / "extra.tf").exists()
+    assert not (tf / ".terraform").exists()
+    assert (state / "terraform.tfstate").read_text() == '{"serial": 7}'
+    assert (tf / "terraform.tfstate").read_text() == '{"serial": 3}'
+    assert [p.name for p in (project / ".socialagent" / "infra").iterdir()] == [VERSION]
+
+
 def test_edits_to_the_copy_are_overwritten(packaged, project):
     tf = _infra.materialize(project)
     (tf / "main.tf").write_text("# my edit\n")

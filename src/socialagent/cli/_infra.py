@@ -21,9 +21,9 @@ build archives under ``${path.root}/.terraform/`` and
 root's local state under ``bootstrap/terraform.tfstate.d/``. A shared or
 read-only ``site-packages`` cannot take those writes, and two projects must
 not share them. The copy carries a marker with the hash of what was copied,
-and is replaced whenever its content no longer hashes to the CLI's, so it
-is CLI-owned: edits there are overwritten. Terraform's local state is
-carried into the replacement. Copies made by other CLI versions are left
+and is refreshed whenever its content no longer hashes to the CLI's, so it
+is CLI-owned: edits there are overwritten. Terraform's local state is kept
+where it is through every refresh. Copies made by other CLI versions are left
 where they are, because their bootstrap state, if any, lives in them.
 
 The managed copy cannot deploy yet: ``packaging.tf`` builds the Lambda layer
@@ -153,8 +153,8 @@ def materialize(
     *source* defaults to the Terraform this CLI ships and *version* to the
     CLI's version. A copy whose marker and content both hash to *source* is
     used as it is; any other (missing, partial, edited, or from a different
-    build of the same version) is rebuilt beside it and swapped in, with
-    Terraform's local state carried over.
+    build of the same version) is refreshed in place, keeping Terraform's
+    local state where it is.
     """
     source = (source or terraform_dir()).resolve()
     if not (source / "main.tf").is_file():
@@ -171,27 +171,22 @@ def materialize(
 
     _tfvars.work_dir(project_dir)
     root.mkdir(exist_ok=True)
-    staging = root / f".{version}.new-{os.getpid()}"
-    shutil.rmtree(staging, ignore_errors=True)
+    replacing = dest.is_dir()
+    # In place rather than built beside and swapped in: the state is the one
+    # thing here that cannot be rebuilt, and a refresh that never moves it
+    # cannot lose it, wherever it is interrupted. The marker goes first and
+    # comes back last, so an interrupted refresh is never taken for a
+    # complete copy and the next run refreshes it again.
+    (dest / MARKER).unlink(missing_ok=True)
+    if replacing:
+        _clear_all_but_state(dest)
     for rel in tree_files(source):
-        target = staging / rel
+        target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source / rel, target)
-    replacing = dest.is_dir()
-    if replacing:
-        for rel in _state_paths(dest):
-            (staging / rel).parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(dest / rel, staging / rel)
-    (staging / MARKER).write_text(
+    (dest / MARKER).write_text(
         json.dumps({"version": version, "sha256": digest}, indent=2) + "\n"
     )
-    if replacing:
-        old = root / f".{version}.old-{os.getpid()}"
-        dest.rename(old)
-        staging.rename(dest)
-        shutil.rmtree(old, ignore_errors=True)
-    else:
-        staging.rename(dest)
     shown = os.path.relpath(dest, project_dir)
     # stderr, so `config` output piped to another program stays parseable.
     print(
@@ -200,6 +195,27 @@ def materialize(
         file=sys.stderr,
     )
     return dest
+
+
+def _clear_all_but_state(root: Path) -> None:
+    """Delete everything under *root* except Terraform's local state and its parents."""
+    keep = set(_state_paths(root))
+    parents = {parent for rel in keep for parent in rel.parents}
+
+    def clear(rel: Path) -> None:
+        for child in sorted((root / rel).iterdir()):
+            child_rel = rel / child.name
+            if child_rel in keep:
+                continue
+            is_dir = child.is_dir() and not child.is_symlink()
+            if is_dir and child_rel in parents:
+                clear(child_rel)
+            elif is_dir:
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+
+    clear(Path())
 
 
 def _is_checkout(root: Path) -> bool:
