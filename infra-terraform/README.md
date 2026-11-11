@@ -247,6 +247,8 @@ aws ssm get-parameter --name /<env>-<project>/deployment-metrics/tracking-code
 
 **What is collected.** The fact that a deployment of this solution happened, keyed to the opaque code above. **What is not collected:** no usage data, no message content, no conversation data, no customer data, and nothing AWS does not already see in its own CloudFormation control plane.
 
+How AWS handles the information it collects is described in the [AWS Privacy Policy](https://aws.amazon.com/privacy/).
+
 **Extra permissions this needs.** The stack is created with your own credentials, so the principal running `terraform apply` needs `cloudformation:CreateStack`, `DeleteStack`, `UpdateStack`, `DescribeStacks`, `DescribeStackEvents` and `GetTemplate` on the stack, plus `ssm:PutParameter`, `DeleteParameter`, `GetParameter`, `GetParameters`, `AddTagsToResource`, `RemoveTagsFromResource` and `ListTagsForResource` on the parameter (CloudFormation propagates the stack tags from `default_tags` onto the parameter). These are already included in [`minimal-deploy-policy.json`](minimal-deploy-policy.json) as the `DeploymentMetricsStack` and `DeploymentMetricsParameter` statements, both scoped to the marker stack and its single parameter. If you deploy with a different least-privilege role, extend it or opt out.
 
 **To opt out**, set it under `terraform:` in the project's `socialagent.<env>.yaml`:

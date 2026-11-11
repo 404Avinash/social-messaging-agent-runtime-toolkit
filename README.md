@@ -301,6 +301,8 @@ SMART is in **beta**. What ships next, what is deferred and why, and the longer-
 
 Bug reports and feature requests go to [GitHub issues](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues), and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose a change and [AGENTS.md](AGENTS.md) for an architecture-oriented overview of the codebase. Report security issues privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
 
+If SMART is useful to you, please star the repository: it helps others find the project.
+
 ## License
 
 [Apache-2.0](LICENSE) © Amazon.com, Inc. or its affiliates. See [NOTICE](NOTICE) for attribution.
@@ -312,6 +314,8 @@ WhatsApp is a trademark of Meta Platforms, Inc. This project integrates with Wha
 ## Anonymous Operational Metrics
 
 Each deployment creates a small CloudFormation stack whose description carries an anonymous tracking code, so AWS can count how many times this solution is deployed. It contains one free SSM Standard parameter and nothing else, and no other resource depends on it. Collected: the fact of a deployment. Not collected: usage data, message content, conversation data, or customer data. Opt out with `terraform.enable_deployment_metrics: false` in `socialagent.<env>.yaml`, before the first deploy (turning it off later adds a deletion and does not undo the count). It removes the stack but not the `TrackingId` tag carrying the same code on every taggable resource; that tag is not collected. Full detail, including the extra IAM permissions it needs, is in [infra-terraform/README.md](infra-terraform/README.md#operational-metrics-collection).
+
+How AWS handles the information it collects is described in the [AWS Privacy Policy](https://aws.amazon.com/privacy/).
 
 | What is emitted | Where | Used for |
 |-----------------|-------|----------|
