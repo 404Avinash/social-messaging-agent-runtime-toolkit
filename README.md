@@ -7,7 +7,7 @@
 [![CI](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/ci.yml?query=branch%3Amain)
 [![Security](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/actions/workflows/security.yml?query=branch%3Amain)
 ![Status](https://img.shields.io/badge/status-beta-orange)
-![Version](https://img.shields.io/badge/version-2026.10.0-blue)
+![Version](https://img.shields.io/badge/version-2026.11.0-blue)
 [![PyPI](https://img.shields.io/pypi/v/smart-socialagent)](https://pypi.org/project/smart-socialagent/)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![IaC](https://img.shields.io/badge/IaC-Terraform-7B42BC)

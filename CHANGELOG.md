@@ -4,6 +4,8 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 
 ## [Unreleased]
 
+## [2026.11.0] - 2026-11-13
+
 ### Fixed
 - CLI output, including the anonymous deployment counter notice, stays ahead of Terraform output when redirected to a file or pipe.
 - `personal-assistant` now passes `transcribe_languages` to the transcription call in its `on_media` hook, so the setting applies to its voice notes as it does to the default path. `handlers/` is project code, so an existing project adds `language_options=config.transcribe_languages,` to the `transcribe_audio` call in `handlers/webhook.py` by hand. The blueprint's YAML sets `transcribe_languages: [es-MX, en-US]`, which had no effect on its voice notes before this fix, so check that the list names your users' languages before you deploy the change.
@@ -47,5 +49,6 @@ The first public release. Everything below was in the toolkit when it was publis
 ### Admin console (beta)
 - Fleet view, conversations, per-user state, schedules, templates with preview, logs, errors, restart, phone binding; Cognito sign-in with MFA; deny-by-default authorization on every route. The console has had less production time than the SDK and CLI and ships as beta; it is a separate Terraform root an adopter may skip.
 
-[Unreleased]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/compare/v2026.10.0...HEAD
+[Unreleased]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/compare/v2026.11.0...HEAD
+[2026.11.0]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/compare/v2026.10.0...v2026.11.0
 [2026.10.0]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/releases/tag/v2026.10.0
