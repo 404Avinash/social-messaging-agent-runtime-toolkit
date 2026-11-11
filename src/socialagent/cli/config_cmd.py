@@ -217,8 +217,12 @@ def _cmd_tfvars(args: argparse.Namespace) -> None:
             f"config not found: {cfg_path} (run: socialagent config init --env {args.env})"
         )
     tf_dir = Path(args.tf_dir) if args.tf_dir else _find_tf_dir(project_dir)
-    if not tf_dir or not (tf_dir / "variables.tf").is_file():
-        raise CliError("could not find infra-terraform/variables.tf; use --tf-dir")
+    if (
+        not tf_dir
+        or not tf_dir.is_dir()
+        or not any(p.is_file() for p in tf_dir.glob("*.tf"))
+    ):
+        raise CliError("could not find Terraform files (*.tf); use --tf-dir")
     tfvars = generate_tfvars(load(cfg_path), project_dir, tf_dir)
     print(json.dumps(tfvars, indent=2))
 

@@ -5,6 +5,7 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 ## [Unreleased]
 
 ### Fixed
+- `socialagent deploy` and `socialagent config tfvars` now read variable declarations and defaults from every `*.tf` file in the Terraform directory rather than only `variables.tf`, so a `--tf-dir` copy that defines `enable_deployment_metrics` (or any other variable) in another `.tf` file keeps the deployment-counter notice accurate and accepts it under `terraform:` in `socialagent.<env>.yaml`.
 - `personal-assistant` now passes `transcribe_languages` to the transcription call in its `on_media` hook, so the setting applies to its voice notes as it does to the default path. `handlers/` is project code, so an existing project adds `language_options=config.transcribe_languages,` to the `transcribe_audio` call in `handlers/webhook.py` by hand. The blueprint's YAML sets `transcribe_languages: [es-MX, en-US]`, which had no effect on its voice notes before this fix, so check that the list names your users' languages before you deploy the change.
 - The zip-mode agent archive leaves out the project's `infrastructure/` directory, like the Docker-mode archive. A zip-mode project with that directory gets a new archive hash, so its next deploy rebuilds the package once.
 
