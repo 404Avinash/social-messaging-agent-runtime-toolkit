@@ -156,6 +156,9 @@ def test_plan_changes_nothing(checkout):
     )
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="fake terraform is a POSIX shell script"
+)
 def test_deploy_plan_prints_its_notice_before_terraform_in_a_log(checkout, tmp_path):
     project, _ = checkout
     bin_dir = tmp_path / "bin"
