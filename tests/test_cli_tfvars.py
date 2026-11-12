@@ -230,3 +230,44 @@ def test_unknown_variable_names_tf_dir(tmp_path):
     (tf / "extra.tf").write_text('variable "ok_var" {\n  default = "yes"\n}\n')
     with pytest.raises(ConfigError, match=f"unknown_var is not a variable in {tf}"):
         generate({**_BASE, "terraform": {"unknown_var": "val"}}, project, tf)
+
+
+def test_override_files_take_precedence(tmp_path):
+    """override.tf and *_override.tf are applied after all regular *.tf files."""
+    tf = tmp_path / "tf"
+    tf.mkdir()
+    (tf / "variables.tf").write_text(
+        'variable "from_a_override" {\n  default = "base"\n}\n'
+        'variable "from_z_override" {\n  default = "base"\n}\n'
+        'variable "from_plain_override" {\n  default = "base"\n}\n'
+        'variable "required_then_defaulted" {}\n'
+    )
+    (tf / "a_override.tf").write_text(
+        'variable "from_a_override" {\n  default = "a_override"\n}\n'
+    )
+    (tf / "z_override.tf").write_text(
+        'variable "from_z_override" {\n  default = "z_override"\n}\n'
+    )
+    (tf / "override.tf").write_text(
+        'variable "from_plain_override" {\n  default = "plain_override"\n}\n'
+        'variable "required_then_defaulted" {\n  default = "provided"\n}\n'
+    )
+
+    assert variable_default(tf, "from_a_override") == '"a_override"'
+    assert variable_default(tf, "from_z_override") == '"z_override"'
+    assert variable_default(tf, "from_plain_override") == '"plain_override"'
+    assert variable_default(tf, "required_then_defaulted") == '"provided"'
+    assert terraform_variables(tf)["required_then_defaulted"] is False
+
+
+def test_override_without_default_preserves_earlier_default(tmp_path):
+    """An override block without default merges attributes without dropping default."""
+    tf = tmp_path / "tf"
+    tf.mkdir()
+    (tf / "variables.tf").write_text('variable "kept" {\n  default = "orig"\n}\n')
+    (tf / "override.tf").write_text(
+        'variable "kept" {\n  description = "overridden description"\n}\n'
+    )
+
+    assert variable_default(tf, "kept") == '"orig"'
+    assert terraform_variables(tf)["kept"] is False

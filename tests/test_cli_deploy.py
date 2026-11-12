@@ -1231,3 +1231,24 @@ def test_custom_tf_dir_with_variables_in_other_tf_file(checkout, capsys):
     assert NOTICE_LABEL not in capsys.readouterr().out
     assert "plan" in runner2.verbs()
     assert "apply" in runner2.verbs()
+
+
+def test_override_files_control_deployment_metrics(checkout):
+    """override.tf and z_override.tf override enable_deployment_metrics default."""
+    project, tf = checkout
+    config = yaml.safe_load((project / "socialagent.dev.yaml").read_text())
+    assert _deploy.deployment_metrics_enabled(config, tf) is True
+
+    z_override = tf / "z_override.tf"
+    z_override.write_text(
+        'variable "enable_deployment_metrics" {\n  default = false\n}\n'
+    )
+    assert _deploy.deployment_metrics_enabled(config, tf) is False
+
+    z_override.unlink()
+    assert _deploy.deployment_metrics_enabled(config, tf) is True
+
+    (tf / "override.tf").write_text(
+        'variable "enable_deployment_metrics" {\n  default = false\n}\n'
+    )
+    assert _deploy.deployment_metrics_enabled(config, tf) is False

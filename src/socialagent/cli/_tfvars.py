@@ -44,11 +44,24 @@ _PATH_FIELDS = {
 }
 
 _VARIABLE_RE = re.compile(r'^variable\s+"(\w+)"\s*\{(.*?)^\}', re.S | re.M)
+_DEFAULT_RE = re.compile(r"^\s*default\s*=", re.M)
+_DEFAULT_VALUE_RE = re.compile(r"^\s*default\s*=\s*(.+?)\s*$", re.M)
+
+
+def _is_override_file(path: Path) -> bool:
+    """Return True if *path* is a Terraform override file (applied last)."""
+    return path.name == "override.tf" or path.name.endswith("_override.tf")
 
 
 def _iter_variable_blocks(tf_dir: Path) -> Iterator[tuple[str, str]]:
-    """Yield ``(name, body)`` for each variable block in ``tf_dir/*.tf``."""
-    for path in sorted(tf_dir.glob("*.tf")):
+    """Yield ``(name, body)`` for each variable block in ``tf_dir/*.tf``.
+
+    Regular ``*.tf`` files are yielded in sorted name order first, followed by
+    ``override.tf`` and ``*_override.tf`` in sorted name order to match
+    Terraform's override precedence.
+    """
+    paths = sorted(tf_dir.glob("*.tf"), key=lambda p: (_is_override_file(p), p.name))
+    for path in paths:
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8")
@@ -57,28 +70,32 @@ def _iter_variable_blocks(tf_dir: Path) -> Iterator[tuple[str, str]]:
 
 def terraform_variables(tf_dir: Path) -> dict[str, bool]:
     """Map each variable in ``tf_dir/*.tf`` to whether it is required."""
-    return {
-        name: re.search(r"^\s*default\s*=", body, re.M) is None
-        for name, body in _iter_variable_blocks(tf_dir)
-    }
+    variables: dict[str, bool] = {}
+    for name, body in _iter_variable_blocks(tf_dir):
+        has_default = _DEFAULT_RE.search(body) is not None
+        # Terraform overrides merge attributes, preserving an earlier default.
+        variables[name] = False if has_default else variables.get(name, True)
+    return variables
 
 
 def variable_default(tf_dir: Path, name: str) -> str | None:
     """The ``default = ...`` of *name* in ``tf_dir/*.tf`` as written.
 
     ``None`` when the variable is absent or has no default (so is required).
-    Only the text on the ``default`` line is returned, which is the whole value
-    for a bool, number or string; a multi-line map or list reads as its opening
+    Override files (``override.tf`` and ``*_override.tf``) are scanned after
+    regular ``*.tf`` files, and the last block setting ``default`` wins. Only
+    the text on the ``default`` line is returned, which is the whole value for
+    a bool, number or string; a multi-line map or list reads as its opening
     bracket.
     """
+    value: str | None = None
     for found, body in _iter_variable_blocks(tf_dir):
         if found == name:
-            match = re.search(r"^\s*default\s*=\s*(.+?)\s*$", body, re.M)
-            if not match:
-                return None
-            # a trailing comment is not part of the value
-            return re.sub(r"\s*(#|//).*$", "", match.group(1))
-    return None
+            match = _DEFAULT_VALUE_RE.search(body)
+            if match:
+                # a trailing comment is not part of the value
+                value = re.sub(r"\s*(#|//).*$", "", match.group(1))
+    return value
 
 
 def _path(value: str, project_dir: Path, tf_dir: Path) -> str:
