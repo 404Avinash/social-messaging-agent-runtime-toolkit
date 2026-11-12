@@ -1,7 +1,7 @@
 ---
 id: ADR-0012
 title: "The package carries the stack's Terraform, so a pip install covers the whole lifecycle"
-status: Proposed
+status: Accepted
 date: 2026-11-11
 deciders: SMART maintainers
 supersedes: []
@@ -13,7 +13,7 @@ tags: [packaging, deploy, terraform, cli]
 
 | Status | Date | Deciders |
 |---|---|---|
-| Proposed | 2026-11-11 | SMART maintainers |
+| Accepted | 2026-11-11 | SMART maintainers |
 
 ## Context
 
@@ -25,11 +25,11 @@ Whatever replaces the clone must keep four things true: an existing stack deploy
 
 ## Decision
 
-Recommended: **the Terraform comes from the package.** The wheel carries the stack's Terraform root module, and the CLI materializes it per project under `.socialagent/infra/`, refreshing it in place when its content changes, so Terraform's local state there survives a CLI upgrade. `find_tf_dir` resolves, in order, `--tf-dir`, a checkout, then the managed copy. Outside a checkout the Lambda layer and template sync install the SDK from a package spec that defaults to `smart-socialagent==<CLI version>` instead of `pip install .`, and `--sdk-wheel` points it at a local wheel for an unreleased build. The module stays one root with the same resource addresses, so no state moves.
+**The Terraform comes from the package.** The wheel carries the stack's Terraform root module, and the CLI materializes it per project (not once per user, because Terraform writes its build archives inside the module and two projects must not share them) under `.socialagent/infra/`, refreshing it in place when its content changes, so Terraform's local state there survives a CLI upgrade. `find_tf_dir` resolves, in order, `--tf-dir`, a checkout, then the managed copy. Outside a checkout the Lambda layer and template sync install the SDK from a package spec that defaults to `smart-socialagent==<CLI version>` instead of `pip install .`, and `--sdk-wheel` points it at a local wheel for an unreleased build. The module stays one root with the same resource addresses, so no state moves.
 
 The agent runtime stays vendored, and ADR-0003 stands. With this record, `pip install smart-socialagent` is enough to `init`, `bootstrap`, `deploy`, `destroy` and `status --refresh` a stack.
 
-Question for the maintainers: accept CLI-managed Terraform as the default for a project created from the package, with the checkout as the contributor path?
+The checkout stays the contributor path.
 
 ## Alternatives considered
 
@@ -50,7 +50,7 @@ Question for the maintainers: accept CLI-managed Terraform as the default for a 
 - The runtime stays vendored, and a CLI installed from a wheel has no git history to classify a project's copy: a copy from an earlier release reads as `unknown`, so `socialagent runtime update --force` replaces it (with a backup) until the wheel carries the runtime's lineage ([#127](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/127)). The release notes say so whenever the runtime changes.
 - Every stack rebuilds its Lambda layer once, on the first deploy in package mode, because what the layer is built from changes.
 - Planned, not shipped:
-  - Two variables that attach project statements to the existing custom policies, and `socialagent infra eject`, which copies the module into the project for anyone who wants to own it. The variables come with an explicit deny on `social-messaging:*` on the runtime role that they cannot override, and a validation that rejects any `social-messaging:` action at plan time, each with a test; both get a security review ([#179](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/179); the deny can ship first, [#178](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/178)).
+  - Two variables that attach project statements to the existing custom policies, and `socialagent infra eject`, which copies the module into the project for anyone who wants to own it. The variables come with an explicit deny on `social-messaging:*` on the runtime role that they cannot override, and a validation that rejects any `social-messaging:` action at plan time, each with a test; both get a security review ([#179](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/179)). The deny ([#178](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/178)) merges before the variables or with them, never after: the variables widen what a project can grant the runtime role, and the deny is what keeps that safe.
   - `socialagent tf`: any other Terraform command with the stack's context, with the same checks as `deploy` and `destroy`, refusing `-replace`, `taint` and `state rm` on the AgentCore Runtime without `--force`.
   - Deploying the admin console without a clone.
   - The runtime outside the project (see Alternatives considered), in its own record ([#132](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/issues/132)).
@@ -59,9 +59,17 @@ Question for the maintainers: accept CLI-managed Terraform as the default for a 
 
 Things this record does not settle, or that review may want to challenge. A question that gets answered moves into Decision or Consequences and is removed here.
 
-- Is installing the layer's SDK from PyPI in CodeBuild acceptable, or should package mode always build from a wheel the CLI uploads? Recommended: the PyPI spec pinned to the exact version, with a local wheel as the override for unreleased builds.
-- Should the managed copy live per project (`.socialagent/infra/`) or once per user, with only the data directories per project? Recommended: per project, because Terraform writes its build archives inside the module and two projects must not share them.
+- Is installing the layer's SDK from PyPI in CodeBuild acceptable, or should package mode always build from a wheel the CLI uploads? An `==` pin fixes the version but not the file, since a wheel can be added to a published version later. Recommended: the CLI downloads the exact wheel, checks its sha256 and its trusted-publishing attestation, and uploads it, so CodeBuild never resolves the SDK from the index; the SDK's own dependencies still come from the index. Settled in the security review of [#167](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/pull/167).
 
 ## Enforced by
 
-Nothing yet. A Proposed record enforces nothing; the pull requests that implement it (#165 and #167) add the tests that will be listed here when it is accepted.
+The Terraform in the wheel and the managed copy ship first, in [#165](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/pull/165); building the layer and template sync from the package ships with [#167](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/pull/167), which adds its tests here. Until then `deploy` and `destroy` refuse the managed copy.
+
+- `tests/test_cli_packaging.py::test_wheel_ships_the_stacks_terraform` and `tests/test_cli_packaging.py::test_wheel_leaves_out_what_a_deployers_terraform_dir_holds`: the wheel carries the root module, `bootstrap/` and `modules/`, and none of Terraform's writes, state, tfvars or account inputs.
+- `tests/test_cli_packaging.py::test_pip_installed_cli_runs_its_own_terraform`: a CLI installed from the wheel, outside a checkout, runs the copy it writes to `.socialagent/infra/`.
+- `tests/test_cli_infra.py::test_tf_dir_flag_wins_over_a_checkout_and_the_managed_copy`, `tests/test_cli_infra.py::test_a_checkout_wins_over_the_managed_copy` and `tests/test_cli_infra.py::test_another_repos_infra_terraform_is_not_a_checkout`: the resolver order, and a contributor's checkout keeps today's behaviour.
+- `tests/test_cli_infra.py::test_deploy_and_config_resolve_through_the_same_function`: every command that runs Terraform resolves the root in one place.
+- `tests/test_cli_infra.py::test_copy_is_replaced_when_the_cli_terraform_changes`, `tests/test_cli_infra.py::test_edits_to_the_copy_are_overwritten` and `tests/test_cli_infra.py::test_the_packaged_terraform_is_never_written`: the copy follows what the CLI ships, and the installed package is never written.
+- `tests/test_cli_infra.py::test_an_interrupted_refresh_never_loses_bootstrap_state` and `tests/test_cli_infra.py::test_a_cli_upgrade_refreshes_the_same_copy_and_keeps_bootstrap_state`: Terraform's local state survives a refresh, an interrupted one and a CLI upgrade.
+- `tests/test_cli_infra.py::test_a_symlinked_copy_is_refused_and_its_target_left_alone`: a refresh never deletes through a symlinked `.socialagent/` or `.socialagent/infra/`.
+- `tests/test_cli_infra.py::test_deploy_from_the_managed_copy_stops_before_terraform`: until [#167](https://github.com/awslabs/social-messaging-agent-runtime-toolkit/pull/167), `deploy` and `destroy` refuse the managed copy before Terraform runs.
