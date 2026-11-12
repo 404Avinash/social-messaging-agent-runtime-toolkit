@@ -18,6 +18,7 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 - `socialagent templates validate` exits 0 with a message in a project with no `templates.yaml` and no templates path configured, such as one from the `minimal` blueprint, instead of failing. A configured path that is missing, a `templates.yaml` that is a directory or a broken symlink, and a run outside any project are still errors (#83).
 
 ### Admin console
+- The State tab and the global State page no longer list or count the scheduler's `_schedule#` firing records as user state; Nuclear reset leaves them in place, as they expire on their own.
 - "Delete selected" on the State tab and the global State page asks for confirmation, naming how many keys, users and stacks it will delete and warning that the deletion cannot be undone; one click no longer deletes.
 - The conversation viewer's "Delete conversation" asks for confirmation inside the viewer, naming the conversation and warning that the deletion cannot be undone, before it deletes the conversation's AgentCore Memory events; one click no longer deletes.
 - The Stack Detail Deploys tab reports a failed CodeBuild read instead of showing an empty history, reads each stack's builds in the stack's own region, and reads a zip stack's builds from `<prefix>-agent-zip-build`.
