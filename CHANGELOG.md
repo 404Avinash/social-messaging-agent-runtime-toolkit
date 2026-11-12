@@ -22,6 +22,7 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 - "Delete selected" on the State tab and the global State page asks for confirmation, naming how many keys, users and stacks it will delete and warning that the deletion cannot be undone; one click no longer deletes.
 - The conversation viewer's "Delete conversation" asks for confirmation inside the viewer, naming the conversation and warning that the deletion cannot be undone, before it deletes the conversation's AgentCore Memory events; one click no longer deletes.
 - The Stack Detail Deploys tab reports a failed CodeBuild read instead of showing an empty history, reads each stack's builds in the stack's own region, and reads a zip stack's builds from `<prefix>-agent-zip-build`.
+- The Stack Detail header, the Overview's "Last deploy" column and the Stacks page's "Last deploy" column read the last deploy from the stack's own CodeBuild project, so a zip stack or a stack deployed in another region no longer shows "-" where it was deployed.
 
 ### Developer experience
 - Published on PyPI as `smart-socialagent` ([ADR-0008](docs/adr/0008-pypi-distribution-name.md)): `socialagent` collides with an existing project there. The command and the import package stay `socialagent`, and `deploy` still needs a clone of the repository for `infra-terraform/`. The package page (`PYPI.md`) opens with the beta and "AS IS" notice.
