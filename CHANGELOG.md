@@ -4,6 +4,10 @@ All notable changes to SMART, the Social Messaging Agent Runtime Toolkit, are re
 
 ## [Unreleased]
 
+## [2026.11.0] - 2026-11-13
+
+**Upgrading a project.** The agent runtime changed in this release (outbound reactions), and a project's `socialagent_runtime/` is a copy made by `socialagent init`, so it keeps the old one until it is replaced. A CLI installed from PyPI has no git history to tell an earlier copy from a later or edited one, so `socialagent runtime status` reports the copy as `unknown` and `socialagent runtime update` refuses it: run `socialagent runtime update --force`, which keeps a backup under `.socialagent/runtime-backups/`.
+
 ### WhatsApp channel
 - Outbound reactions: `messages.reaction(message_id, emoji)` queues an emoji on a user message through the in-band notify path (empty emoji removes a reaction). Existing projects pick this up with `socialagent runtime update`.
 
@@ -61,5 +65,6 @@ The first public release. Everything below was in the toolkit when it was publis
 ### Admin console (beta)
 - Fleet view, conversations, per-user state, schedules, templates with preview, logs, errors, restart, phone binding; Cognito sign-in with MFA; deny-by-default authorization on every route. The console has had less production time than the SDK and CLI and ships as beta; it is a separate Terraform root an adopter may skip.
 
-[Unreleased]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/compare/v2026.10.0...HEAD
+[Unreleased]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/compare/v2026.11.0...HEAD
+[2026.11.0]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/compare/v2026.10.0...v2026.11.0
 [2026.10.0]: https://github.com/awslabs/social-messaging-agent-runtime-toolkit/releases/tag/v2026.10.0
